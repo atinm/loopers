@@ -15,7 +15,7 @@ use loopers_common::api::{
     Command, FrameTime, LooperCommand, LooperMode, LooperSpeed, Part, PartSet, QuantizationMode,
 };
 use loopers_common::gui_channel::{
-    EngineState, EngineStateSnapshot, GuiCommand, GuiReceiver, GuiSender, LogMessage, Waveform,
+    EngineState, EngineMode, EngineStateSnapshot, GuiCommand, GuiReceiver, GuiSender, LogMessage, Waveform,
     WAVEFORM_DOWNSAMPLE,
 };
 use loopers_common::music::{MetricStructure, Tempo, TimeSignature};
@@ -173,6 +173,7 @@ impl Gui {
             state: AppData {
                 engine_state: EngineStateSnapshot {
                     engine_state: EngineState::Stopped,
+                    engine_mode: EngineMode::Play,
                     time: FrameTime(0),
                     metric_structure: MetricStructure {
                         time_signature: TimeSignature { upper: 4, lower: 4 },

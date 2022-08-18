@@ -20,7 +20,7 @@ use loopers_common::api::{
 };
 use loopers_common::config::{Config, MidiMapping, FILE_HEADER};
 use loopers_common::gui_channel::{
-    EngineState, EngineStateSnapshot, GuiCommand, GuiSender, LogMessage,
+    EngineState, EngineMode, EngineStateSnapshot, GuiCommand, GuiSender, LogMessage,
 };
 use loopers_common::midi::MidiEvent;
 use loopers_common::music::*;
@@ -44,6 +44,8 @@ pub struct Engine {
     config: Config,
 
     state: EngineState,
+
+    mode: EngineMode,
 
     time: i64,
 
@@ -149,6 +151,7 @@ impl Engine {
             config,
 
             state: EngineState::Stopped,
+            mode: EngineMode::Play,
             time: 0,
 
             metric_structure,
@@ -708,6 +711,9 @@ impl Engine {
                     }
                     self.reset();
                 }
+            },
+            ToggleMode => {
+                self.mode = if self.mode == EngineMode::Record { EngineMode::Play } else { EngineMode::Record };
             }
         }
     }
@@ -1032,6 +1038,7 @@ impl Engine {
         self.gui_sender
             .send_update(GuiCommand::StateSnapshot(EngineStateSnapshot {
                 engine_state: self.state,
+                engine_mode: self.mode,
                 time: FrameTime(self.time),
                 metric_structure: self.metric_structure,
                 active_looper: self.active,
