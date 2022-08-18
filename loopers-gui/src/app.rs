@@ -8,7 +8,7 @@ use loopers_common::api::{
     get_sample_rate, Command, FrameTime, LooperCommand, LooperMode, LooperSpeed, LooperTarget,
     Part, QuantizationMode, PARTS,
 };
-use loopers_common::gui_channel::EngineState;
+use loopers_common::gui_channel::{EngineState, EngineMode};
 use loopers_common::music::{MetricStructure, TimeSignature};
 use regex::Regex;
 use sdl2::mouse::MouseButton;
@@ -1335,6 +1335,7 @@ enum BottomButtonBehavior {
     Part(Part),
     Undo,
     Redo,
+    Mode,
 }
 
 struct LoadWindow {
@@ -1419,6 +1420,10 @@ impl BottomButtonView {
                     ControlButton::new("D", c, None, 22.0),
                 ),
                 (
+                    BottomButtonBehavior::Mode,
+                    ControlButton::new("Mode", c, None, 22.0)
+                ),
+                (
                     BottomButtonBehavior::Undo,
                     ControlButton::new("Undo", c, None, 22.0)
                 ),
@@ -1484,6 +1489,11 @@ impl BottomButtonView {
                             controller.send_command(
                                 Command::Looper(LooperCommand::Redo, LooperTarget::Selected),
                                 "Failed to redo");
+                        },
+                        BottomButtonBehavior::Mode => {
+                            controller.send_command(
+                                Command::ToggleMode,
+                                "Failed change mode");
                         }
                     };
                 }
@@ -1530,18 +1540,24 @@ impl BottomButtonView {
                 match behavior {
                     BottomButtonBehavior::Part(part) => data.engine_state.part == part,
                     BottomButtonBehavior::SetSyncMode(mode) => data.engine_state.sync_mode == mode,
+                    BottomButtonBehavior::Mode => data.engine_state.engine_mode == EngineMode::Record,
                     _ => false,
                 },
                 disabled,
                 on_click,
                 last_event,
                 progress_percent,
+                match behavior {
+                    BottomButtonBehavior::Mode => if data.engine_state.engine_mode == EngineMode::Record { Some("Rec") } else { Some("Play") }
+                    _ => None
+                }
             );
             x += size.width + 10.0;
 
             if behavior == BottomButtonBehavior::Load
                 || behavior == BottomButtonBehavior::SetSyncMode(QuantizationMode::Measure)
                 || behavior == BottomButtonBehavior::Part(Part::D)
+                || behavior == BottomButtonBehavior::Mode
             {
                 x += 30.0;
             }
@@ -1686,6 +1702,7 @@ impl LooperView {
                     }
                 },
                 last_event,
+                None,
             )
         })
     }
@@ -1715,6 +1732,7 @@ impl LooperView {
                     }
                 },
                 last_event,
+                None,
             )
         })
     }
@@ -1746,6 +1764,7 @@ impl LooperView {
                     }
                 },
                 last_event,
+                None,
             )
         })
     }
@@ -1789,6 +1808,7 @@ impl LooperView {
                     }
                 },
                 last_event,
+                None,
             )
         })
     }

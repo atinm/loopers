@@ -17,9 +17,16 @@ pub enum EngineState {
     Active,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum EngineMode {
+    Record,
+    Play,
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct EngineStateSnapshot {
     pub engine_state: EngineState,
+    pub engine_mode: EngineMode,
     pub time: FrameTime,
     pub metric_structure: MetricStructure,
     pub active_looper: u32,

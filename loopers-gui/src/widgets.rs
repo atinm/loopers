@@ -120,8 +120,9 @@ impl ControlButton {
         disabled: bool,
         on_click: F,
         last_event: Option<GuiEvent>,
+        text: Option<&str>,
     ) -> Size {
-        self.draw_with_progress(canvas, is_active, disabled, on_click, last_event, 0.0)
+        self.draw_with_progress(canvas, is_active, disabled, on_click, last_event, 0.0, text)
     }
 
     pub fn draw_with_progress<F: FnOnce(MouseButton) -> ()>(
@@ -132,7 +133,17 @@ impl ControlButton {
         on_click: F,
         last_event: Option<GuiEvent>,
         progress_percent: f32,
+        text: Option<&str>,
     ) -> Size {
+        match text {
+            Some(x) => {
+                let font = Font::new(Typeface::default(), 16.0);
+                self.text_size = font.measure_str(x, None).1.size();
+                self.text = TextBlob::new(x, &font).unwrap();
+                self.width = self.text_size.width + 24.0
+            }
+            None => ()
+        }
         let bounds = Rect::new(0.0, 0.0, self.width, self.height);
 
         if !disabled {

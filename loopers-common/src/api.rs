@@ -258,6 +258,7 @@ pub enum Command {
 
     SetTempoBPM(f32),
     SetTimeSignature(u8, u8),
+    ToggleMode,
 }
 
 impl Command {
@@ -347,6 +348,8 @@ impl Command {
                 )?;
                 Box::new(move |_| Command::SetMetronomeLevel(arg))
             }
+
+            "ToggleMode" => Box::new(|_| Command::ToggleMode),
 
             _ => {
                 return LooperCommand::from_str(command, args);
