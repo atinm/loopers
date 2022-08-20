@@ -450,6 +450,7 @@ pub enum LooperMode {
     Muted,
     Playing,
     Soloed,
+    Armed,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, Eq, PartialEq, Hash)]

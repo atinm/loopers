@@ -8,7 +8,8 @@ use loopers_common::api::{
     get_sample_rate, Command, FrameTime, LooperCommand, LooperMode, LooperSpeed, LooperTarget,
     Part, QuantizationMode, PARTS,
 };
-use loopers_common::gui_channel::{EngineState, EngineMode};
+use loopers_common::clamp;
+use loopers_common::gui_channel::{EngineMode, EngineState};
 use loopers_common::music::{MetricStructure, TimeSignature};
 use regex::Regex;
 use sdl2::mouse::MouseButton;
@@ -23,10 +24,13 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use loopers_common::clamp;
 
 const LOOP_ICON: &[u8] = include_bytes!("../resources/icons/loop.png");
 const METRONOME_ICON: &[u8] = include_bytes!("../resources/icons/metronome.png");
+const UNDO_ICON: &[u8] = include_bytes!("../resources/icons/undo.png");
+const REDO_ICON: &[u8] = include_bytes!("../resources/icons/redo.png");
+const CLEAR_ICON: &[u8] = include_bytes!("../resources/icons/clear.png");
+const RESET_ICON: &[u8] = include_bytes!("../resources/icons/reset.png");
 
 fn color_for_mode(mode: LooperMode) -> Color {
     match mode {
@@ -34,6 +38,7 @@ fn color_for_mode(mode: LooperMode) -> Color {
         LooperMode::Overdubbing => Color::from_rgb(85, 163, 180),
         LooperMode::Playing | LooperMode::Soloed => Color::from_rgb(85, 180, 95),
         LooperMode::Muted => Color::from_rgb(178, 178, 178),
+        LooperMode::Armed => Color::from_rgb(255, 128, 0),
     }
 }
 
@@ -44,6 +49,7 @@ fn dark_color_for_mode(mode: LooperMode) -> Color {
         LooperMode::Playing => Color::from_rgb(63, 137, 0),
         LooperMode::Soloed => Color::from_rgb(63, 137, 0),
         LooperMode::Muted => Color::from_rgb(69, 69, 69),
+        LooperMode::Armed => Color::from_rgb(64, 32, 0),
     }
 }
 
@@ -520,9 +526,15 @@ impl BottomBarView {
         let size = self.time_view.draw(h, data, canvas, controller, last_event);
         canvas.translate((size.width.round() + 20.0, 0.0));
 
-        self.peak_view
-            .draw(canvas, data.engine_state.input_levels, None, 160.0, h,
-                  |_| {}, last_event);
+        self.peak_view.draw(
+            canvas,
+            data.engine_state.input_levels,
+            None,
+            160.0,
+            h,
+            |_| {},
+            last_event,
+        );
 
         canvas.restore();
     }
@@ -883,9 +895,12 @@ impl MetronomeButton {
         paint.set_alpha_f(data.engine_state.metronome_volume.min(1.0).max(0.3));
 
         canvas.draw_image_rect_with_sampling_options(
-            &self.icon, None, bounds,
+            &self.icon,
+            None,
+            bounds,
             CubicResampler::catmull_rom(),
-            &paint);
+            &paint,
+        );
 
         Size::new(25.0, 25.0)
     }
@@ -902,6 +917,7 @@ impl Button for MetronomeButton {
 }
 
 struct TimeView {
+    record_button: RecordButton,
     play_pause_button: PlayPauseButton,
     stop_button: StopButton,
 }
@@ -909,6 +925,7 @@ struct TimeView {
 impl TimeView {
     fn new() -> Self {
         Self {
+            record_button: RecordButton::new(),
             play_pause_button: PlayPauseButton::new(),
             stop_button: StopButton::new(),
         }
@@ -979,10 +996,20 @@ impl TimeView {
         canvas.translate((x, 0.0));
 
         x += self
+            .record_button
+            .draw(canvas, data, controller, last_event)
+            .width
+            + 5.0;
+        canvas.restore();
+
+        canvas.save();
+        canvas.translate((x, 0.0));
+
+        x += self
             .play_pause_button
             .draw(canvas, data, controller, last_event)
             .width
-            + 10.0;
+            + 5.0;
         canvas.restore();
 
         canvas.save();
@@ -1078,8 +1105,16 @@ impl PeakMeterView {
         self.image = Some((surface.image_snapshot(), Instant::now()));
     }
 
-    fn draw<F: FnOnce(f32)>(&mut self, canvas: &mut Canvas, levels: [u8; 2], set_level: Option<f32>,
-                            w: f32, h: f32, new_level: F, last_event: Option<GuiEvent>) -> Size {
+    fn draw<F: FnOnce(f32)>(
+        &mut self,
+        canvas: &mut Canvas,
+        levels: [u8; 2],
+        set_level: Option<f32>,
+        w: f32,
+        h: f32,
+        new_level: F,
+        last_event: Option<GuiEvent>,
+    ) -> Size {
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
         paint.set_stroke_width(1.5);
@@ -1119,9 +1154,11 @@ impl PeakMeterView {
             paint.set_anti_alias(true);
 
             canvas.draw_image_with_sampling_options(
-                &image, (0.0, 0.0),
+                &image,
+                (0.0, 0.0),
                 CubicResampler::catmull_rom(),
-                Some(&paint));
+                Some(&paint),
+            );
         }
 
         // draw peak
@@ -1155,7 +1192,10 @@ impl PeakMeterView {
 
             // handle clicks
             let bounds = Rect::from_size((w, h));
-            if let Some(GuiEvent::MouseEvent(MouseEventType::MouseDown(MouseButton::Left), (x, y))) = last_event
+            if let Some(GuiEvent::MouseEvent(
+                MouseEventType::MouseDown(MouseButton::Left),
+                (x, y),
+            )) = last_event
             {
                 let point = canvas
                     .local_to_device_as_3x3()
@@ -1180,8 +1220,78 @@ impl PeakMeterView {
             }
         }
 
-
         Size::new(w, h)
+    }
+}
+
+struct RecordButton {
+    button_state: ButtonState,
+}
+
+impl RecordButton {
+    fn new() -> Self {
+        Self {
+            button_state: ButtonState::Default,
+        }
+    }
+
+    fn draw(
+        &mut self,
+        canvas: &mut Canvas,
+        data: &AppData,
+        controller: &mut Controller,
+        last_event: Option<GuiEvent>,
+    ) -> Size {
+        let bounds = Rect::new(0.0, -5.0, 25.0, 20.0);
+
+        self.handle_event(
+            canvas,
+            &bounds,
+            |button| {
+                if button == MouseButton::Left {
+                    controller
+                        .send_command(Command::ToggleMode, "Failed to send command to engine");
+                }
+            },
+            last_event,
+        );
+
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        let rect = Rect::new(0.0, 0.0, 20.0, 20.0);
+        paint.set_style(Style::Fill);
+
+        match self.button_state {
+            ButtonState::Hover => {
+                if data.engine_state.engine_mode == EngineMode::Record {
+                    // draw red record button
+                    paint.set_color(dark_color_for_mode(LooperMode::Recording));
+                } else {
+                    paint.set_color(dark_color_for_mode(LooperMode::Playing));
+                }
+            }
+            _ => {
+                if data.engine_state.engine_mode == EngineMode::Record {
+                    // draw red record button
+                    paint.set_color(color_for_mode(LooperMode::Recording));
+                } else {
+                    paint.set_color(color_for_mode(LooperMode::Playing));
+                }
+            }
+        }
+        canvas.draw_circle(rect.center(), rect.width() * 0.5, &paint);
+
+        Size::new(25.0, 25.0)
+    }
+}
+
+impl Button for RecordButton {
+    fn set_state(&mut self, state: ButtonState) {
+        self.button_state = state;
+    }
+
+    fn get_state(&self) -> ButtonState {
+        self.button_state
     }
 }
 
@@ -1335,7 +1445,8 @@ enum BottomButtonBehavior {
     Part(Part),
     Undo,
     Redo,
-    Mode,
+    Clear,
+    Reset,
 }
 
 struct LoadWindow {
@@ -1385,51 +1496,55 @@ impl BottomButtonView {
             buttons: vec![
                 (
                     BottomButtonBehavior::Save,
-                    ControlButton::new("save", c, None, 22.0),
+                    ControlButton::new("save", None, c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::Load,
-                    ControlButton::new("load", c, None, 22.0),
+                    ControlButton::new("load", None, c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::SetSyncMode(QuantizationMode::Free),
-                    ControlButton::new("free", c, None, 22.0),
+                    ControlButton::new("free", None, c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::SetSyncMode(QuantizationMode::Beat),
-                    ControlButton::new("beat", c, None, 22.0),
+                    ControlButton::new("beat", None, c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::SetSyncMode(QuantizationMode::Measure),
-                    ControlButton::new("measure", c, None, 22.0),
+                    ControlButton::new("bar", None, c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::Part(Part::A),
-                    ControlButton::new("A", c, None, 22.0),
+                    ControlButton::new("A", None, c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::Part(Part::B),
-                    ControlButton::new("B", c, None, 22.0),
+                    ControlButton::new("B", None, c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::Part(Part::C),
-                    ControlButton::new("C", c, None, 22.0),
+                    ControlButton::new("C", None, c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::Part(Part::D),
-                    ControlButton::new("D", c, None, 22.0),
-                ),
-                (
-                    BottomButtonBehavior::Mode,
-                    ControlButton::new("Mode", c, None, 22.0)
+                    ControlButton::new("D", None, c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::Undo,
-                    ControlButton::new("Undo", c, None, 22.0)
+                    ControlButton::new("U", Some(&UNDO_ICON) ,c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::Redo,
-                    ControlButton::new("Redo", c, None, 22.0)
+                    ControlButton::new("R", Some(&REDO_ICON), c, None, 22.0),
+                ),
+                (
+                    BottomButtonBehavior::Clear,
+                    ControlButton::new("Clr", Some(&CLEAR_ICON), c, None, 22.0),
+                ),
+                (
+                    BottomButtonBehavior::Reset,
+                    ControlButton::new("X", Some(&RESET_ICON), c, None, 22.0),
                 ),
             ],
             load_window: LoadWindow {
@@ -1483,31 +1598,53 @@ impl BottomButtonView {
                         BottomButtonBehavior::Undo => {
                             controller.send_command(
                                 Command::Looper(LooperCommand::Undo, LooperTarget::Selected),
-                                "Failed to undo");
+                                "Failed to undo",
+                            );
                         }
                         BottomButtonBehavior::Redo => {
                             controller.send_command(
                                 Command::Looper(LooperCommand::Redo, LooperTarget::Selected),
-                                "Failed to redo");
-                        },
-                        BottomButtonBehavior::Mode => {
+                                "Failed to redo",
+                            );
+                        }
+                        BottomButtonBehavior::Clear => {
                             controller.send_command(
-                                Command::ToggleMode,
-                                "Failed change mode");
+                                Command::Looper(LooperCommand::Clear, LooperTarget::Selected),
+                                "Failed to clear",
+                            );
+                        }
+                        BottomButtonBehavior::Reset => {
+                            // send clear to all loops
+                            for l in data.loopers.values() {
+                                controller.send_command(
+                                    Command::Looper(LooperCommand::Clear, LooperTarget::Id(l.id)),
+                                    "Failed to reset loops",
+                                );
+                            }
                         }
                     };
                 }
             };
 
             let disabled = match behavior {
-                BottomButtonBehavior::Undo => {
-                    data.loopers.get(&data.engine_state.active_looper).map(|l| !l.has_undos)
-                        .unwrap_or(false)
-                }
-                BottomButtonBehavior::Redo => {
-                    data.loopers.get(&data.engine_state.active_looper).map(|l| !l.has_redos)
-                        .unwrap_or(true)
-                }
+                BottomButtonBehavior::Undo => data
+                    .loopers
+                    .get(&data.engine_state.active_looper)
+                    .map(|l| !l.has_undos)
+                    .unwrap_or(false),
+                BottomButtonBehavior::Redo => data
+                    .loopers
+                    .get(&data.engine_state.active_looper)
+                    .map(|l| !l.has_redos)
+                    .unwrap_or(true),
+                BottomButtonBehavior::Clear => data
+                    .loopers
+                    .get(&data.engine_state.active_looper)
+                    .map(|l| l.length == 0)
+                    .unwrap_or(true),
+                BottomButtonBehavior::Reset => data
+                    .loopers
+                    .len() == 0,
                 _ => false,
             };
 
@@ -1540,24 +1677,19 @@ impl BottomButtonView {
                 match behavior {
                     BottomButtonBehavior::Part(part) => data.engine_state.part == part,
                     BottomButtonBehavior::SetSyncMode(mode) => data.engine_state.sync_mode == mode,
-                    BottomButtonBehavior::Mode => data.engine_state.engine_mode == EngineMode::Record,
                     _ => false,
                 },
                 disabled,
                 on_click,
                 last_event,
                 progress_percent,
-                match behavior {
-                    BottomButtonBehavior::Mode => if data.engine_state.engine_mode == EngineMode::Record { Some("Rec") } else { Some("Play") }
-                    _ => None
-                }
+                None,
             );
             x += size.width + 10.0;
 
             if behavior == BottomButtonBehavior::Load
                 || behavior == BottomButtonBehavior::SetSyncMode(QuantizationMode::Measure)
                 || behavior == BottomButtonBehavior::Part(Part::D)
-                || behavior == BottomButtonBehavior::Mode
             {
                 x += 30.0;
             }
@@ -1654,23 +1786,13 @@ impl LooperView {
                         15.0,
                     ),
                     (
-                        Self::new_speed_button(
-                            "½x",
-                            LooperSpeed::Half,
-                            button_height,
-                            45.0
-                        ),
-                        10.0
+                        Self::new_speed_button("½x", LooperSpeed::Half, button_height, 45.0),
+                        10.0,
                     ),
                     (
-                        Self::new_speed_button(
-                            "2x",
-                            LooperSpeed::Double,
-                            button_height,
-                            45.0
-                        ),
-                        15.0
-                    )
+                        Self::new_speed_button("2x", LooperSpeed::Double, button_height, 45.0),
+                        15.0,
+                    ),
                 ],
             ],
             state: ButtonState::Default,
@@ -1688,7 +1810,7 @@ impl LooperView {
         h: f32,
         w: f32,
     ) -> Box<dyn FnMut(&mut Canvas, &LooperData, &mut Controller, Option<GuiEvent>) -> Size> {
-        let mut button = ControlButton::new(name, color, Some(w), h);
+        let mut button = ControlButton::new(name, None, color, Some(w), h);
 
         Box::new(move |canvas, _, controller, last_event| {
             button.draw(
@@ -1713,7 +1835,7 @@ impl LooperView {
         h: f32,
         w: f32,
     ) -> Box<dyn FnMut(&mut Canvas, &LooperData, &mut Controller, Option<GuiEvent>) -> Size> {
-        let mut button = ControlButton::new(name, Color::LIGHT_GRAY, Some(w), h);
+        let mut button = ControlButton::new(name, None, Color::LIGHT_GRAY, Some(w), h);
 
         Box::new(move |canvas, data, controller, last_event| {
             button.draw(
@@ -1722,11 +1844,14 @@ impl LooperView {
                 false,
                 |button| {
                     if button == MouseButton::Left {
-                        let command = Command::Looper(LooperCommand::SetSpeed(if data.speed == speed {
-                            LooperSpeed::One
-                        } else {
-                            speed
-                        }), LooperTarget::Id(data.id));
+                        let command = Command::Looper(
+                            LooperCommand::SetSpeed(if data.speed == speed {
+                                LooperSpeed::One
+                            } else {
+                                speed
+                            }),
+                            LooperTarget::Id(data.id),
+                        );
 
                         controller.send_command(command, "Failed to send command to engine");
                     }
@@ -1742,7 +1867,7 @@ impl LooperView {
         h: f32,
     ) -> Box<dyn FnMut(&mut Canvas, &LooperData, &mut Controller, Option<GuiEvent>) -> Size> {
         let mut button =
-            ControlButton::new(part.name(), Color::from_rgb(78, 78, 78), Some(28.0), h);
+            ControlButton::new(part.name(), None, Color::from_rgb(78, 78, 78), Some(28.0), h);
 
         Box::new(move |canvas, data, controller, last_event| {
             button.draw(
@@ -1774,7 +1899,7 @@ impl LooperView {
         name: &str,
         h: f32,
     ) -> Box<dyn FnMut(&mut Canvas, &LooperData, &mut Controller, Option<GuiEvent>) -> Size> {
-        let mut button = ControlButton::new(name, color_for_mode(mode), Some(100.0), h);
+        let mut button = ControlButton::new(name, None, color_for_mode(mode), Some(100.0), h);
 
         Box::new(move |canvas, looper, controller, last_event| {
             button.draw(
@@ -1868,7 +1993,6 @@ impl LooperView {
             canvas.draw_str(text, Point::new(x, 55.0), &font, &paint);
         }
 
-
         let waveform_width = w - WAVEFORM_OFFSET_X - WAVEFORM_RIGHT_MARGIN;
 
         let bounds = Rect::from_size((waveform_width, LOOPER_HEIGHT))
@@ -1899,11 +2023,20 @@ impl LooperView {
             last_event,
         );
         canvas.translate((0.0, 40.0));
-        self.peak.draw(canvas, looper.levels, Some(looper.level), 70.0, 30.0,
-                       |level| controller.send_command(
-                           Command::Looper(LooperCommand::SetLevel(level), LooperTarget::Id(looper.id)),
-                           "Failed to set level"
-                       ), last_event);
+        self.peak.draw(
+            canvas,
+            looper.levels,
+            Some(looper.level),
+            70.0,
+            30.0,
+            |level| {
+                controller.send_command(
+                    Command::Looper(LooperCommand::SetLevel(level), LooperTarget::Id(looper.id)),
+                    "Failed to set level",
+                )
+            },
+            last_event,
+        );
 
         canvas.restore();
 
@@ -2096,9 +2229,11 @@ impl<T: Eq + Copy> DrawCache<T> {
         paint.set_color(Color::from_rgb(255, 255, 0));
         canvas.scale((1.0 / IMAGE_SCALE, 1.0 / IMAGE_SCALE));
         canvas.draw_image_with_sampling_options(
-            image, (0.0, 0.0),
+            image,
+            (0.0, 0.0),
             CubicResampler::catmull_rom(),
-            Some(&paint));
+            Some(&paint),
+        );
         canvas.restore();
 
         Some(*size)

@@ -3,7 +3,7 @@ use loopers_common::clamp;
 use sdl2::mouse::MouseButton;
 use skia_safe::paint::Style;
 use skia_safe::{
-    Canvas, Color, Contains, Font, Paint, Path, Point, Rect, Size, TextBlob, Typeface,
+    Canvas, Color, Contains, CubicResampler, Data, Font, Image, Paint, Path, Point, Rect, Size, TextBlob, Typeface
 };
 use std::f32::consts::PI;
 use std::time::UNIX_EPOCH;
@@ -90,23 +90,29 @@ pub struct ControlButton {
     state: ButtonState,
     text: TextBlob,
     text_size: Size,
+    icon: Option<Image>,
     color: Color,
     width: f32,
     height: f32,
 }
 
 impl ControlButton {
-    pub fn new(text: &str, color: Color, width: Option<f32>, height: f32) -> Self {
+    pub fn new(text: &str, icon_data: Option<&[u8]>, color: Color, width: Option<f32>, height: f32) -> Self {
         let font = Font::new(Typeface::default(), 16.0);
-
         let text_size = font.measure_str(text, None).1.size();
-
         let text = TextBlob::new(text, &font).unwrap();
-
+        let icon = match icon_data {
+            Some(data) => {
+                let icon_data = Data::new_copy(data);
+                Some(Image::from_encoded(icon_data).expect("could not decode icon"))
+            }
+            _ => None
+        };
         ControlButton {
             state: ButtonState::Default,
             text,
             text_size,
+            icon,
             color,
             width: width.unwrap_or(text_size.width + 24.0),
             height,
@@ -144,7 +150,10 @@ impl ControlButton {
             }
             None => ()
         }
-        let bounds = Rect::new(0.0, 0.0, self.width, self.height);
+        let bounds = match &self.icon {
+            Some(_) => Rect::new(0.0, 0.0, 22.0, 22.0),
+            None => Rect::new(0.0, 0.0, self.width, self.height)
+        };
 
         if !disabled {
             self.handle_event(canvas, &bounds, on_click, last_event);
@@ -190,18 +199,32 @@ impl ControlButton {
             canvas.draw_rect(&progress, &paint);
         }
 
-        let mut text_paint = Paint::default();
-        text_paint.set_anti_alias(true);
-        text_paint.set_color(Color::WHITE);
+        match &self.icon {
+            Some(icon) => {
+                canvas.draw_image_rect_with_sampling_options(
+                    icon,
+                    None,
+                    bounds,
+                    CubicResampler::catmull_rom(),
+                    &paint,
+                );
+            }
+            None => {
+                let mut text_paint = Paint::default();
 
-        if disabled {
-            text_paint.set_alpha_f(0.3);
+                text_paint.set_anti_alias(true);
+                text_paint.set_color(Color::WHITE);
+
+                if disabled {
+                    text_paint.set_alpha_f(0.3);
+                }
+
+                let x = self.width * 0.5 - self.text_size.width * 0.5;
+                let y = self.height * 0.5 + self.text_size.height * 0.25;
+
+                canvas.draw_text_blob(&self.text, (x, y), &text_paint);
+            }
         }
-
-        let x = self.width * 0.5 - self.text_size.width * 0.5;
-        let y = self.height * 0.5 + self.text_size.height * 0.5;
-
-        canvas.draw_text_blob(&self.text, (x, y), &text_paint);
 
         bounds.size()
     }
