@@ -20,7 +20,7 @@ use loopers_common::api::{
 };
 use loopers_common::config::{Config, MidiMapping, FILE_HEADER};
 use loopers_common::gui_channel::{
-    EngineState, EngineMode, EngineStateSnapshot, GuiCommand, GuiSender, LogMessage,
+    EngineState, EngineMode, EngineSwitchingOrder, EngineStateSnapshot, GuiCommand, GuiSender, LogMessage,
 };
 use loopers_common::midi::MidiEvent;
 use loopers_common::music::*;
@@ -46,6 +46,8 @@ pub struct Engine {
     state: EngineState,
 
     mode: EngineMode,
+
+    switching_order: EngineSwitchingOrder,
 
     time: i64,
 
@@ -152,6 +154,7 @@ impl Engine {
 
             state: EngineState::Stopped,
             mode: EngineMode::Play,
+            switching_order: EngineSwitchingOrder::RecordPlayOverdub,
             time: 0,
 
             metric_structure,
@@ -245,7 +248,7 @@ impl Engine {
             debug!("midi {:?}", e);
             for i in 0..self.config.midi_mappings.len() {
                 let mm = &self.config.midi_mappings[i];
-                if let Some(c) = mm.command_for_event(e) {
+                if let Some(c) = mm.command_for_event(e, self.mode) {
                     self.handle_command(host, &c, false);
                 }
             }
@@ -276,6 +279,7 @@ impl Engine {
             (_, _, Record)
             | (_, LooperMode::Recording, _)
             | (true, _, RecordOverdubPlay)
+            | (true, _, RecordPlayOverdub)
             | (_, LooperMode::Overdubbing, _) => Some(Trigger::new(
                 trigger_condition,
                 Command::Looper(lc, target),
@@ -283,6 +287,12 @@ impl Engine {
                 time,
             )),
             (_, _, RecordOverdubPlay) => Some(Trigger::new(
+                TriggerCondition::Immediate,
+                Command::Looper(lc, target),
+                ms,
+                time,
+            )),
+            (_, _, RecordPlayOverdub) => Some(Trigger::new(
                 TriggerCondition::Immediate,
                 Command::Looper(lc, target),
                 ms,
@@ -713,7 +723,17 @@ impl Engine {
                 }
             },
             ToggleMode => {
-                self.mode = if self.mode == EngineMode::Record { EngineMode::Play } else { EngineMode::Record };
+                trigger_or_run(self, command, triggered, true, |engine| {
+                    engine.mode = if engine.mode == EngineMode::Record { EngineMode::Play } else { EngineMode::Record };
+                    if engine.mode == EngineMode::Play {
+                        for l in &mut engine.loopers {
+                            if !l.deleted && (l.mode() == LooperMode::Recording ||
+                                l.mode() == LooperMode::Overdubbing || l.mode() == LooperMode::Armed) {
+                                l.handle_command(LooperCommand::Play);
+                            }
+                        }
+                    }
+                });
             }
         }
     }
@@ -1039,6 +1059,7 @@ impl Engine {
             .send_update(GuiCommand::StateSnapshot(EngineStateSnapshot {
                 engine_state: self.state,
                 engine_mode: self.mode,
+                engine_switching_order: self.switching_order,
                 time: FrameTime(self.time),
                 metric_structure: self.metric_structure,
                 active_looper: self.active,

@@ -1828,6 +1828,7 @@ impl Looper {
             Record => self.transition_to(LooperMode::Recording),
             Overdub => self.transition_to(LooperMode::Overdubbing),
             Play => self.transition_to(LooperMode::Playing),
+            Arm => self.transition_to(LooperMode::Armed),
             Mute => self.transition_to(LooperMode::Muted),
             Solo => self.transition_to(LooperMode::Soloed),
             Clear => {
@@ -1868,11 +1869,30 @@ impl Looper {
                 self.deleted = true;
                 self.send_to_backend(ControlMessage::Deleted);
             }
+            PlayMuteArm => {
+                if self.mode() == LooperMode::Playing || self.mode() == LooperMode::Armed {
+                    self.transition_to(LooperMode::Muted);
+                } else {
+                    self.transition_to(LooperMode::Armed);
+                }
+            }
             RecordOverdubPlay => {
                 // TODO: this logic is duplicated in the gui, would be good to unify somehow
                 if self.length() == 0 {
                     self.transition_to(LooperMode::Recording);
                 } else if self.mode() == LooperMode::Recording || self.mode() == LooperMode::Playing {
+                    self.transition_to(LooperMode::Overdubbing);
+                } else {
+                    self.transition_to(LooperMode::Playing);
+                }
+            }
+            RecordPlayOverdub => {
+                // TODO: this logic is duplicated in the gui, would be good to unify somehow
+                if self.length() == 0 {
+                    self.transition_to(LooperMode::Recording);
+                } else if self.mode() == LooperMode::Recording {
+                    self.transition_to(LooperMode::Playing);
+                } else if self.mode() == LooperMode::Playing {
                     self.transition_to(LooperMode::Overdubbing);
                 } else {
                     self.transition_to(LooperMode::Playing);
