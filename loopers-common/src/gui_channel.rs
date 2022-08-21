@@ -21,12 +21,32 @@ pub enum EngineState {
 pub enum EngineMode {
     Record,
     Play,
+    Both
+}
+
+impl EngineMode {
+    pub fn from_str(
+        mode: &str,
+    ) -> Result<EngineMode, String> {
+        Ok(match mode {
+            "Record" => EngineMode::Record,
+            "Play" => EngineMode::Play,
+            _ => EngineMode::Both,
+        })
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum EngineSwitchingOrder {
+    RecordOverdubPlay,
+    RecordPlayOverdub,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct EngineStateSnapshot {
     pub engine_state: EngineState,
     pub engine_mode: EngineMode,
+    pub engine_switching_order: EngineSwitchingOrder,
     pub time: FrameTime,
     pub metric_structure: MetricStructure,
     pub active_looper: u32,

@@ -1,5 +1,6 @@
 use crate::api::{Command, CommandData};
 use crate::midi::MidiEvent;
+use crate::gui_channel::{EngineMode};
 use csv::StringRecord;
 use std::fs::File;
 use std::io;
@@ -72,7 +73,7 @@ mod tests {
     }
 }
 
-pub static FILE_HEADER: &str = "Channel\tController\tData\tCommand\tArg1\tArg2\tArg3";
+pub static FILE_HEADER: &str = "Channel\tController\tData\tMode\tCommand\tArg1\tArg2\tArg3";
 
 pub struct Config {
     pub midi_mappings: Vec<MidiMapping>,
@@ -127,6 +128,7 @@ pub struct MidiMapping {
     pub channel: Option<u8>,
     pub controller: u8,
     pub data: DataValue,
+    pub mode: EngineMode,
     pub command: Box<dyn Fn(CommandData) -> Command + Send>,
 }
 
@@ -200,10 +202,14 @@ impl MidiMapping {
             .map(DataValue::parse)?
             .ok_or("Invalid data format (expected either *, a range like 15-20, or a single value like 127")?;
 
-        let args: Vec<&str> = record.iter().skip(4).collect();
-
-        let command = record
+        let mode = record
             .get(3)
+            .ok_or("No mode field".to_string())
+            .and_then(|c| EngineMode::from_str(c))?;
+
+            let args: Vec<&str> = record.iter().skip(5).collect();
+            let command = record
+            .get(4)
             .ok_or("No command field".to_string())
             .and_then(|c| Command::from_str(c, &args))?;
 
@@ -211,11 +217,12 @@ impl MidiMapping {
             channel,
             controller,
             data,
+            mode,
             command,
         })
     }
 
-    pub fn command_for_event(&self, event: &MidiEvent) -> Option<Command> {
+    pub fn command_for_event(&self, event: &MidiEvent, mode: EngineMode) -> Option<Command> {
         match event {
             MidiEvent::ControllerChange {
                 channel,
@@ -224,6 +231,7 @@ impl MidiMapping {
             } => {
                 if (self.channel.is_none() || self.channel.unwrap() == *channel)
                     && (self.controller == *controller)
+                    && (self.mode == EngineMode::Both || self.mode == mode)
                     && (self.data.matches(*data))
                 {
                     return Some((self.command)(CommandData { data: *data }));

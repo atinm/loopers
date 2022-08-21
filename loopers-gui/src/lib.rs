@@ -15,7 +15,7 @@ use loopers_common::api::{
     Command, FrameTime, LooperCommand, LooperMode, LooperSpeed, Part, PartSet, QuantizationMode,
 };
 use loopers_common::gui_channel::{
-    EngineState, EngineMode, EngineStateSnapshot, GuiCommand, GuiReceiver, GuiSender, LogMessage, Waveform,
+    EngineState, EngineMode, EngineSwitchingOrder, EngineStateSnapshot, GuiCommand, GuiReceiver, GuiSender, LogMessage, Waveform,
     WAVEFORM_DOWNSAMPLE,
 };
 use loopers_common::music::{MetricStructure, Tempo, TimeSignature};
@@ -23,8 +23,6 @@ use sdl2::mouse::MouseButton;
 use std::collections::{BTreeMap, VecDeque};
 use std::io::Write;
 use std::time::{Duration, Instant};
-
-const SHOW_BUTTONS: bool = true;
 
 pub const MESSAGE_DISPLAY_TIME_SECS: u64 = 4;
 
@@ -168,12 +166,14 @@ impl Gui {
         receiver: GuiReceiver,
         command_sender: Sender<Command>,
         gui_sender: GuiSender,
+        show_buttons: bool,
     ) -> Gui {
         Gui {
             state: AppData {
                 engine_state: EngineStateSnapshot {
                     engine_state: EngineState::Stopped,
                     engine_mode: EngineMode::Play,
+                    engine_switching_order: EngineSwitchingOrder::RecordPlayOverdub,
                     time: FrameTime(0),
                     metric_structure: MetricStructure {
                         time_signature: TimeSignature { upper: 4, lower: 4 },
@@ -189,7 +189,7 @@ impl Gui {
                     metronome_volume: 1.0,
                 },
                 loopers: BTreeMap::new(),
-                show_buttons: SHOW_BUTTONS,
+                show_buttons: show_buttons,
                 messages: Log::new(),
                 global_triggers: Vec::new(),
             },

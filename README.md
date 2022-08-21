@@ -240,7 +240,9 @@ Commands also differ in how they are affected by quantization:
 | Record | Looper Targets | Quantized | Moves the selected loopers to the Record mode |
 | Overdub | Looper Targets | Quantized | Moves the selected loopers to the Overdub mode |
 | Play | Looper Targets | Quantized | Moves the selected loopers to the Play mode |
+| PlayMuteArm | Looper Targets | Immediate | Cycles from Play -> Mute -> Arm -> Mute -> Arm, engine Play will play all Armed loops |
 | RecordOverdubPlay | Looper Targets | Quantized① | Cycles from Record -> Overdub -> Play -> Overdub |
+| RecordPlayOverdub | Looper Targets | Quantized① | Cycles from Record -> Play -> Overdub -> Play -> Overdub |
 | Mute | Looper Targets | Immediate | Toggles the mute modifier on the selected loopers |
 | Solo | Looper Targets | Immediate | Toggles the solo modifier on the selected loopers |
 | Delete | Looper Targets | Immediate | Deletes the selected loopers |
@@ -252,16 +254,17 @@ Commands also differ in how they are affected by quantization:
 | 2x | Looper Targets | Immediate | Sets the looper to 2x speed |
 
 ① _RecordOverdubPlay is quantized from Record -> Overdub and Overdub ->
-Play, but queued from Play -> Overdub._
+Play, but queued from Play -> Overdub. Similarly, RecordPlayOverdub is quantized
+from Record -> Play and Overdub -> Play, but queued from Play -> Overdub._
 
 #### Engine commands
 
 | **Command** | **Parameters** | **Quantization** | **Description** |
 |-|-|-|-|
-| Start | _None_ | Immediate | Starts the engine |
+| Start | _None_ | Immediate | Starts the engine, playing any loops in Playing or Armed state |
 | Stop | _None_ | Immediate | Stops the engine, resetting the time |
 | StartStop | _None_ | Immediate | Starts the engine if it is stopped, otherwise stops it |
-| PlayPause | _None_ | Immediate | Pauses the engine if it is active, otherwise restarts it |
+| PlayPause | _None_ | Immediate | Pauses the engine if it is active, otherwise restarts it, playing any loops in Playing or Armed state |
 | Pause | _None_ | Immediate | Stops the engine but does not reset the time |
 | Reset | _None_ | Immediate | Resets the engine time |
 | SetTime | Time (in samples) | Immediate | Sets the time to the specified number of samples |
@@ -297,8 +300,9 @@ tab-separated columns:
 2. Midi controller number
 3. Midi data (can be `*` for any data, a single value like `50`,
    or a range like `0-100`)
-4. Command name (see tables above)
-5. Command arguments (multiple arguments should be tab-separated; the special 
+4. Mode (Record or Play, can be `*` for either mode)
+5. Command name (see tables above)
+6. Command arguments (multiple arguments should be tab-separated; the special
    value `$data` can be used in the place of certain numerical arguments to 
    use the data value of the midi event, for example for use with an expression 
    pedal)
@@ -312,20 +316,20 @@ excellent pedalboard):
 
 ``` tsv
 Channel	Controller	Data	Command	Arg1	Arg2	Arg3
-*	22	127	RecordOverdubPlay	Selected
-*	22	0	RecordOverdubPlay	Selected
+*	22	127	* RecordOverdubPlay	Selected
+*	22	0	* RecordOverdubPlay	Selected
 
-*	23	127	SelectNextLooper
-*	23	0	SelectNextLooper
+*	23	127	* SelectNextLooper
+*	23	0	* SelectNextLooper
 
-*	24	127	NextPart
-*	24	0	NextPart
+*	24	127	* NextPart
+*	24	0	* NextPart
 
-*	25	127	Clear	Selected
-*	25	0	Clear	Selected
+*	25	127	* Clear	Selected
+*	25	0	* Clear	Selected
 
-*	26	127	PlayPause
-*	26	0	PlayPause
+*	26	127	* PlayPause
+*	26	0	* PlayPause
 
-*	27	0-127	SetPan	Selected	$data
+*	27	0-127	* SetPan	Selected	$data
 ```

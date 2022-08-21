@@ -88,6 +88,11 @@ fn main() {
                 .help("Launches in headless mode (without the gui)"),
         )
         .arg(
+            Arg::with_name("ctrl-midi-only")
+                .long("ctrl-midi-only")
+                .help("Launches without looper control buttons"),
+        )
+        .arg(
             Arg::with_name("driver")
                 .long("driver")
                 .takes_value(true)
@@ -108,10 +113,11 @@ fn main() {
 
     let (gui_to_engine_sender, gui_to_engine_receiver) = bounded(100);
 
+    let show_buttons = !matches.is_present("ctrl-midi-only");
     let (gui, gui_sender) = if !matches.is_present("no-gui") {
         let (sender, receiver) = GuiSender::new();
         (
-            Some(Gui::new(receiver, gui_to_engine_sender, sender.clone())),
+            Some(Gui::new(receiver, gui_to_engine_sender, sender.clone(), show_buttons)),
             sender,
         )
     } else {

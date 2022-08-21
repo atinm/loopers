@@ -917,16 +917,18 @@ impl Button for MetronomeButton {
 }
 
 struct TimeView {
-    record_button: RecordButton,
-    play_pause_button: PlayPauseButton,
+    mode_button: ModeButton,
+    play_button: PlayButton,
+    pause_button: PauseButton,
     stop_button: StopButton,
 }
 
 impl TimeView {
     fn new() -> Self {
         Self {
-            record_button: RecordButton::new(),
-            play_pause_button: PlayPauseButton::new(),
+            mode_button: ModeButton::new(),
+            play_button: PlayButton::new(),
+            pause_button: PauseButton::new(),
             stop_button: StopButton::new(),
         }
     }
@@ -996,7 +998,7 @@ impl TimeView {
         canvas.translate((x, 0.0));
 
         x += self
-            .record_button
+            .mode_button
             .draw(canvas, data, controller, last_event)
             .width
             + 5.0;
@@ -1006,7 +1008,17 @@ impl TimeView {
         canvas.translate((x, 0.0));
 
         x += self
-            .play_pause_button
+            .play_button
+            .draw(canvas, data, controller, last_event)
+            .width
+            + 5.0;
+        canvas.restore();
+
+        canvas.save();
+        canvas.translate((x, 0.0));
+
+        x += self
+            .pause_button
             .draw(canvas, data, controller, last_event)
             .width
             + 5.0;
@@ -1224,11 +1236,11 @@ impl PeakMeterView {
     }
 }
 
-struct RecordButton {
+struct ModeButton {
     button_state: ButtonState,
 }
 
-impl RecordButton {
+impl ModeButton {
     fn new() -> Self {
         Self {
             button_state: ButtonState::Default,
@@ -1285,7 +1297,7 @@ impl RecordButton {
     }
 }
 
-impl Button for RecordButton {
+impl Button for ModeButton {
     fn set_state(&mut self, state: ButtonState) {
         self.button_state = state;
     }
@@ -1295,11 +1307,87 @@ impl Button for RecordButton {
     }
 }
 
-struct PlayPauseButton {
+struct PlayButton {
     button_state: ButtonState,
 }
 
-impl PlayPauseButton {
+impl PlayButton {
+    fn new() -> Self {
+        Self {
+            button_state: ButtonState::Default,
+        }
+    }
+
+    fn draw(
+        &mut self,
+        canvas: &mut Canvas,
+        data: &AppData,
+        controller: &mut Controller,
+        last_event: Option<GuiEvent>,
+    ) -> Size {
+        let bounds = Rect::new(0.0, -5.0, 25.0, 20.0);
+
+        self.handle_event(
+            canvas,
+            &bounds,
+            |button| {
+                if button == MouseButton::Left {
+                    // set any armed loops to play
+                    for l in data.loopers.values() {
+                        if l.mode == LooperMode::Armed {
+                            controller.send_command(
+                                Command::Looper(LooperCommand::Play, LooperTarget::Id(l.id)),
+                                "Failed to play armed loops",
+                            );
+                        }
+                    }
+                    controller.send_command(Command::Start, "Failed to send start command to engine");
+                }
+            },
+            last_event,
+        );
+
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_color(Color::WHITE);
+        paint.set_style(Style::Fill);
+
+        if self.button_state != ButtonState::Default {
+            match self.button_state {
+                ButtonState::Hover => paint.set_color(Color::from_rgb(120, 120, 120)),
+                ButtonState::Pressed => paint.set_color(Color::from_rgb(60, 60, 60)),
+                ButtonState::Default => unreachable!(),
+            };
+        }
+
+        // draw play icon
+        let mut path = Path::new();
+        path.move_to((0.0, 0.0));
+        path.line_to((0.0, 20.0));
+        path.line_to((20.0, 10.0));
+        path.line_to((0.0, 0.0));
+        path.close();
+        canvas.draw_path(&path, &paint);
+
+        Size::new(25.0, 25.0)
+    }
+}
+
+impl Button for PlayButton {
+    fn set_state(&mut self, state: ButtonState) {
+        self.button_state = state;
+    }
+
+    fn get_state(&self) -> ButtonState {
+        self.button_state
+    }
+}
+
+struct PauseButton {
+    button_state: ButtonState,
+}
+
+impl PauseButton {
     fn new() -> Self {
         Self {
             button_state: ButtonState::Default,
@@ -1345,28 +1433,17 @@ impl PlayPauseButton {
             };
         }
 
-        if data.engine_state.engine_state == EngineState::Active {
-            // draw pause button
-            let rect1 = Rect::new(0.0, 0.0, 7.5, 20.0);
-            let rect2 = Rect::new(12.5, 0.0, 20.0, 20.0);
-            canvas.draw_rect(&rect1, &paint);
-            canvas.draw_rect(&rect2, &paint);
-        } else {
-            // draw play icon
-            let mut path = Path::new();
-            path.move_to((0.0, 0.0));
-            path.line_to((0.0, 20.0));
-            path.line_to((20.0, 10.0));
-            path.line_to((0.0, 0.0));
-            path.close();
-            canvas.draw_path(&path, &paint);
-        }
+         // draw pause button
+        let rect1 = Rect::new(0.0, 0.0, 7.5, 20.0);
+        let rect2 = Rect::new(12.5, 0.0, 20.0, 20.0);
+        canvas.draw_rect(&rect1, &paint);
+        canvas.draw_rect(&rect2, &paint);
 
         Size::new(25.0, 25.0)
     }
 }
 
-impl Button for PlayPauseButton {
+impl Button for PauseButton {
     fn set_state(&mut self, state: ButtonState) {
         self.button_state = state;
     }
@@ -1782,6 +1859,10 @@ impl LooperView {
                         15.0,
                     ),
                     (
+                        Self::new_state_button(LooperMode::Armed, "arm", button_height),
+                        15.0,
+                    ),
+                    (
                         Self::new_state_button(LooperMode::Muted, "mute", button_height),
                         15.0,
                     ),
@@ -1910,11 +1991,13 @@ impl LooperView {
                     if button == MouseButton::Left {
                         use LooperMode::*;
                         let command = match (looper.mode, mode) {
-                            (Recording, Recording) => Some(LooperCommand::Overdub),
+                            (Recording, Recording) => Some(LooperCommand::Play),
                             (_, Recording) => Some(LooperCommand::Record),
                             (Overdubbing, Overdubbing) => Some(LooperCommand::Play),
                             (_, Overdubbing) => Some(LooperCommand::Overdub),
-                            (Muted, Muted) => Some(LooperCommand::Play),
+                            (Armed, Armed) => Some(LooperCommand::Mute),
+                            (_, Armed) => Some(LooperCommand::Arm),
+                            (Muted, Muted) => Some(LooperCommand::Arm),
                             (_, Muted) => Some(LooperCommand::Mute),
                             (Soloed, Soloed) => Some(LooperCommand::Play),
                             (_, Soloed) => Some(LooperCommand::Solo),
@@ -2638,6 +2721,10 @@ impl WaveformView {
                         paint.set_color(color_for_mode(LooperMode::Playing));
                         text = Some("playing");
                     }
+                    LooperCommand::Arm => {
+                        paint.set_color(color_for_mode(LooperMode::Armed));
+                        text = Some("arming");
+                    }
                     LooperCommand::Mute => {
                         paint.set_color(color_for_mode(LooperMode::Muted));
                         text = Some("muting");
@@ -2646,6 +2733,17 @@ impl WaveformView {
                         paint.set_color(color_for_mode(LooperMode::Soloed));
                         text = Some("soloing");
                     }
+                    LooperCommand::PlayMuteArm => {
+                        if looper.mode == LooperMode::Playing
+                            || looper.mode == LooperMode::Armed
+                        {
+                            paint.set_color(color_for_mode(LooperMode::Muted));
+                            text = Some("muting");
+                        } else {
+                            paint.set_color(color_for_mode(LooperMode::Armed));
+                            text = Some("arming");
+                        }
+                    }
                     LooperCommand::RecordOverdubPlay => {
                         if looper.length == 0 {
                             paint.set_color(color_for_mode(LooperMode::Recording));
@@ -2653,6 +2751,21 @@ impl WaveformView {
                         } else if looper.mode == LooperMode::Recording
                             || looper.mode == LooperMode::Playing
                         {
+                            paint.set_color(color_for_mode(LooperMode::Overdubbing));
+                            text = Some("overdubbing");
+                        } else {
+                            paint.set_color(color_for_mode(LooperMode::Playing));
+                            text = Some("playing");
+                        }
+                    }
+                    LooperCommand::RecordPlayOverdub => {
+                        if looper.length == 0 {
+                            paint.set_color(color_for_mode(LooperMode::Recording));
+                            text = Some("recording");
+                        } else if looper.mode == LooperMode::Recording {
+                            paint.set_color(color_for_mode(LooperMode::Playing));
+                            text = Some("playing");
+                        } else if looper.mode == LooperMode::Playing {
                             paint.set_color(color_for_mode(LooperMode::Overdubbing));
                             text = Some("overdubbing");
                         } else {
