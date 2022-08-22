@@ -11,6 +11,7 @@ mod tests {
     use crate::api::LooperCommand::{RecordOverdubPlay, SetPan};
     use crate::api::{Command, CommandData, LooperTarget};
     use crate::config::{DataValue, MidiMapping, FILE_HEADER};
+    use crate::gui_channel::{EngineMode};
     use std::fs::File;
     use std::io::Write;
     use tempfile::NamedTempFile;
@@ -26,10 +27,10 @@ mod tests {
         {
             let file = file.as_file_mut();
             writeln!(file, "{}", FILE_HEADER).unwrap();
-            writeln!(file, "*\t22\t127\tRecordOverdubPlay\t0").unwrap();
-            writeln!(file, "*\t23\t*\tSetMetronomeLevel\t50").unwrap();
-            writeln!(file, "1\t24\t6\tStart").unwrap();
-            writeln!(file, "1\t24\t0-127\tSetPan\tSelected\t$data").unwrap();
+            writeln!(file, "*\t22\t127\tRecord\tRecordOverdubPlay\t0").unwrap();
+            writeln!(file, "*\t23\t*\tBoth\tSetMetronomeLevel\t50").unwrap();
+            writeln!(file, "1\t24\t6\tBoth\tStart").unwrap();
+            writeln!(file, "1\t24\t0-127\tBoth\tSetPan\tSelected\t$data").unwrap();
             file.flush().unwrap();
         }
 
@@ -42,6 +43,7 @@ mod tests {
         assert_eq!(None, mapping[0].channel);
         assert_eq!(22, mapping[0].controller);
         assert_eq!(DataValue::Value(127), mapping[0].data);
+        assert_eq!(EngineMode::Record, mapping[0].mode);
         assert_eq!(
             Command::Looper(RecordOverdubPlay, LooperTarget::Index(0)),
             (mapping[0].command)(CommandData { data: 127 })
@@ -49,6 +51,7 @@ mod tests {
 
         assert_eq!(None, mapping[1].channel);
         assert_eq!(23, mapping[1].controller);
+        assert_eq!(EngineMode::Both, mapping[1].mode);
         assert_eq!(DataValue::Any, mapping[1].data);
         assert_eq!(
             Command::SetMetronomeLevel(50),
@@ -57,6 +60,7 @@ mod tests {
 
         assert_eq!(Some(1), mapping[2].channel);
         assert_eq!(24, mapping[2].controller);
+        assert_eq!(EngineMode::Both, mapping[2].mode);
         assert_eq!(DataValue::Value(6), mapping[2].data);
         assert_eq!(
             Command::Start,
@@ -65,6 +69,7 @@ mod tests {
 
         assert_eq!(Some(1), mapping[3].channel);
         assert_eq!(24, mapping[3].controller);
+        assert_eq!(EngineMode::Both, mapping[3].mode);
         assert_eq!(DataValue::Range(0, 127), mapping[3].data);
         assert_eq!(
             Command::Looper(SetPan(1.0), LooperTarget::Selected),
@@ -207,8 +212,8 @@ impl MidiMapping {
             .ok_or("No mode field".to_string())
             .and_then(|c| EngineMode::from_str(c))?;
 
-            let args: Vec<&str> = record.iter().skip(5).collect();
-            let command = record
+        let args: Vec<&str> = record.iter().skip(5).collect();
+        let command = record
             .get(4)
             .ok_or("No command field".to_string())
             .and_then(|c| Command::from_str(c, &args))?;
