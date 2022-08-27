@@ -98,23 +98,33 @@ pub fn last_session_path() -> io::Result<PathBuf> {
     Ok(config_path)
 }
 
-pub fn read_config() -> Result<Config, String> {
-    let mut mapping_path = dirs::config_dir().unwrap_or(PathBuf::new());
-    mapping_path.push("loopers/midi_mappings.tsv");
+pub fn midi_mapping_path() -> io::Result<PathBuf> {
+    let mut config_path = dirs::config_dir().unwrap_or(PathBuf::new());
+    config_path.push("loopers");
+    create_dir_all(&config_path)?;
+    config_path.push("midi_mappings.tsv");
+    Ok(config_path)
+}
 
+pub fn read_config() -> Result<Config, String> {
     let mut config = Config::new();
 
-    match File::open(&mapping_path) {
-        Ok(file) => match MidiMapping::from_file(&mapping_path.to_string_lossy(), &file) {
-            Ok(mms) => config.midi_mappings.extend(mms),
-            Err(e) => {
-                return Err(format!("Failed to load midi mappings: {:?}", e));
-            }
-        },
-        Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
-            // try to create an empty config file if it doesn't exist
-            if let Ok(ref mut file) = File::create(&mapping_path) {
-                writeln!(file, "{}", FILE_HEADER).unwrap();
+    match midi_mapping_path() {
+        Ok(path) => {
+            match File::open(&path) {
+                Ok(file) => match MidiMapping::from_file(&path.to_string_lossy(), &file) {
+                    Ok(mms) => config.midi_mappings.extend(mms),
+                    Err(e) => {
+                        return Err(format!("Failed to load midi mappings: {:?}", e));
+                    }
+                },
+                Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
+                    // try to create an empty config file if it doesn't exist
+                    if let Ok(ref mut file) = File::create(&path) {
+                        writeln!(file, "{}", FILE_HEADER).unwrap();
+                    }
+                }
+                Err(_) => {}
             }
         }
         Err(_) => {}
