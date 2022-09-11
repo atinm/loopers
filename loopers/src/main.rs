@@ -93,6 +93,11 @@ fn main() {
                 .help("Launches without looper control buttons"),
         )
         .arg(
+            Arg::with_name("fullscreen")
+                .long("fullscreen")
+                .help("Launches in fullscreen mode"),
+        )
+        .arg(
             Arg::with_name("driver")
                 .long("driver")
                 .takes_value(true)
@@ -114,10 +119,11 @@ fn main() {
     let (gui_to_engine_sender, gui_to_engine_receiver) = bounded(100);
 
     let show_buttons = !matches.is_present("ctrl-midi-only");
+    let fullscreen = matches.is_present("fullscreen");
     let (gui, gui_sender) = if !matches.is_present("no-gui") {
         let (sender, receiver) = GuiSender::new();
         (
-            Some(Gui::new(receiver, gui_to_engine_sender, sender.clone(), show_buttons)),
+            Some(Gui::new(receiver, gui_to_engine_sender, sender.clone(), show_buttons, fullscreen)),
             sender,
         )
     } else {

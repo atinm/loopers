@@ -144,6 +144,7 @@ pub struct AppData {
     engine_state: EngineStateSnapshot,
     loopers: BTreeMap<u32, LooperData>,
     show_buttons: bool,
+    fullscreen: bool,
     messages: Log,
     global_triggers: Vec<(
         FrameTime, // time created
@@ -167,6 +168,7 @@ impl Gui {
         command_sender: Sender<Command>,
         gui_sender: GuiSender,
         show_buttons: bool,
+        fullscreen: bool,
     ) -> Gui {
         Gui {
             state: AppData {
@@ -190,6 +192,7 @@ impl Gui {
                 },
                 loopers: BTreeMap::new(),
                 show_buttons: show_buttons,
+                fullscreen: fullscreen,
                 messages: Log::new(),
                 global_triggers: Vec::new(),
             },
