@@ -73,13 +73,25 @@ pub fn skia_main(mut gui: Gui) {
     gl_attr.set_depth_size(0);
     gl_attr.set_stencil_size(8);
 
-    let mut window = video_subsystem
-        .window("loopers", INITIAL_WIDTH as u32, INITIAL_HEIGHT as u32)
-        .opengl()
-        .resizable()
-        .allow_highdpi()
-        .build()
-        .unwrap();
+    let mut window =
+        if gui.state.fullscreen {
+            video_subsystem
+                .window("loopers", INITIAL_WIDTH as u32, INITIAL_HEIGHT as u32)
+                .fullscreen()
+                .opengl()
+                .allow_highdpi()
+                .build()
+                .unwrap()
+        } else {
+            video_subsystem
+                .window("loopers", INITIAL_WIDTH as u32, INITIAL_HEIGHT as u32)
+                .opengl()
+                .resizable()
+                .allow_highdpi()
+                .build()
+                .unwrap()
+        };
+
 
     // must live until window is destroyed
     let _ctx = window.gl_create_context().unwrap();
