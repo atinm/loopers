@@ -244,6 +244,7 @@ Commands also differ in how they are affected by quantization:
 | RecordOverdubPlay | Looper Targets | Quantized① | Cycles from Record -> Overdub -> Play -> Overdub |
 | RecordPlayOverdub | Looper Targets | Quantized① | Cycles from Record -> Play -> Overdub -> Play -> Overdub |
 | Mute | Looper Targets | Immediate | Toggles the mute modifier on the selected loopers |
+| Arm  | Looper Targets | Immediate | Toggles the arm modifier on the selected loopers |
 | Solo | Looper Targets | Immediate | Toggles the solo modifier on the selected loopers |
 | Delete | Looper Targets | Immediate | Deletes the selected loopers |
 | Clear | Looper Targets | Quantized | Clears all samples from the selected loopers |

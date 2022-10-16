@@ -162,6 +162,7 @@ impl LooperCommand {
             "Play" => Box::new(move |_| Looper(Play, target)),
             "PlayMuteArm" => Box::new(move |_| Looper(PlayMuteArm, target)),
             "Mute" => Box::new(move |_| Looper(Mute, target)),
+            "Arm" => Box::new(move |_| Looper(Arm, target)),
             "Solo" => Box::new(move |_| Looper(Solo, target)),
             "RecordOverdubPlay" => Box::new(move |_| Looper(RecordOverdubPlay, target)),
             "RecordPlayOverdub" => Box::new(move |_| Looper(RecordPlayOverdub, target)),
