@@ -723,6 +723,13 @@ impl Engine {
                 }
                 self.reset();
             }
+            ChangeTempoBPM(delta) => {
+                self.metric_structure.tempo = Tempo::from_bpm(self.metric_structure.tempo.bpm() + *delta);
+                if let Some(met) = &mut self.metronome {
+                    met.set_metric_structure(self.metric_structure);
+                }
+                self.reset();
+            }
             SetTimeSignature(upper, lower) => {
                 if let Some(ts) = TimeSignature::new(*upper, *lower) {
                     self.metric_structure.time_signature = ts;

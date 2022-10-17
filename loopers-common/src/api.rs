@@ -263,6 +263,7 @@ pub enum Command {
     SetMetronomeLevel(u8),
 
     SetTempoBPM(f32),
+    ChangeTempoBPM(f32),
     SetTimeSignature(u8, u8),
     ToggleMode,
 }
@@ -353,6 +354,14 @@ impl Command {
                         .to_string(),
                 )?;
                 Box::new(move |_| Command::SetMetronomeLevel(arg))
+            }
+
+            "ChangeTempoBPM" => {
+                let arg = args.get(0).and_then(|s| f32::from_str(s).ok()).ok_or(
+                    "ChangeTempoBPM expects a single numeric argument, the delta BPM to change the current BPM by"
+                        .to_string(),
+                )?;
+                Box::new(move |_| Command::ChangeTempoBPM(arg))
             }
 
             "ToggleMode" => Box::new(|_| Command::ToggleMode),
