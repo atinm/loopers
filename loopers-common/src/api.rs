@@ -356,6 +356,21 @@ impl Command {
                 Box::new(move |_| Command::SetMetronomeLevel(arg))
             }
 
+            "SetTempoBPM" => {
+                let v = args.get(0).ok_or(
+                    "SetTempoBPM expects single numeric argument".to_string(),
+                )?;
+
+                let arg = if *v == "$data" {
+                    None
+                } else {
+                    let f = f32::from_str(v)
+                        .map_err(|_| format!("Invalid value for SetTempoBPM: '{}'", v))?;
+                    Some(f)
+                };
+                Box::new(move |d| Command::SetTempoBPM(arg.unwrap_or(d.data as f32)))
+            }
+
             "ChangeTempoBPM" => {
                 let arg = args.get(0).and_then(|s| f32::from_str(s).ok()).ok_or(
                     "ChangeTempoBPM expects a single numeric argument, the delta BPM to change the current BPM by"
