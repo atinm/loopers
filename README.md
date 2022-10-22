@@ -45,7 +45,7 @@ To build loopers, you will need jack and sdl2.
 For Ubuntu/Debian these can be installed with:
 
 ```bash
-$ sudo apt install jackd2 libjack-jackd2-dev libgl1-mesa-dev libsdl2-dev
+$ sudo apt install build-essential jackd2 libjack-jackd2-dev libgl1-mesa-dev libsdl2-dev libfreetype-dev libfontconfig-dev
 ```
 
 Now you're ready to install loopers itself. First get a rust toolchain
