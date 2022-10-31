@@ -7,6 +7,7 @@ use coreaudio::sys::*;
 use crossbeam_channel::{bounded, Receiver};
 use loopers_common::api::Command;
 use loopers_common::gui_channel::GuiSender;
+use loopers_common::midi::{MidiOutSender, MidiOutReceiver};
 use loopers_common::Host;
 use loopers_engine::Engine;
 use loopers_gui::Gui;
@@ -38,6 +39,8 @@ impl<'a> Host<'a> for CoreAudioHost {
 pub fn coreaudio_main(gui: Option<Gui>,
                       gui_sender: GuiSender,
                       gui_to_engine_receiver: Receiver<Command>,
+                      midi_out_sender: MidiOutSender,
+                      _midi_out_receiver: MidiOutReceiver,
                       beat_normal: Vec<f32>,
                       beat_emphasis: Vec<f32>,
                       restore: bool) -> Result<(), coreaudio::Error> {
@@ -75,6 +78,7 @@ pub fn coreaudio_main(gui: Option<Gui>,
     let mut engine = Engine::new(
         &mut host,
         gui_sender,
+        midi_out_sender,
         gui_to_engine_receiver,
         beat_normal,
         beat_emphasis,

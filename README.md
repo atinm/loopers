@@ -159,7 +159,14 @@ also in solo mode).
 
 <dt><img src="docs/mute_color.png" alt="mute color"> Mute</dt>
 <dd>
-When mute is enabled the looper is silenced.
+When mute is enabled the looper is silenced, and will not play until armed and
+then play all is chosen
+</dd>
+</dl>
+
+<dt><img src="docs/arm_color.png" alt="arm color"> Arm</dt>
+<dd>
+When arm is enabled the looper is silenced, but will play again when play all is chosen
 </dd>
 </dl>
 
@@ -288,9 +295,13 @@ from Record -> Play and Overdub -> Play, but queued from Play -> Overdub._
 ### Settings
 
 Configuration is stored the standard system user config location
-(typically this will be ~/.config/loopers/). Currently the configuration
-consists of a set of mappings from midi messages to loopers
-commands. These should be placed in a file called `midi_mappings.tsv`
+(typically this will be ~/.config/loopers/).
+
+Currently the configuration consists of a set of mappings for both MIDI In
+and Midi Out.
+
+Midi In is a set of mappings from midi in messages to loopers
+commands. These should be placed in a file called `midi_in_mappings.tsv`
 in that config directory, which will be automatically created after loopers
 is run for the first time.
 
@@ -333,4 +344,44 @@ Channel	Controller	Data	Command	Arg1	Arg2	Arg3
 *	26	0	* PlayPause
 
 *	27	0-127	* SetPan	Selected	$data
+```
+
+Midi Out is a set of mappings from loopers engine state to Midi Out messages.
+These should be placed in a file called `midi_out_mappings.tsv`
+in that config directory, which will be automatically created after loopers
+is run for the first time.
+
+#### Midi Out fields
+
+| **SnapshotField** | **Channel** | **Controller** | **Data** |
+|-|-|-|-|
+|EngineState|1|1|Stopped=0,Paused=1,Active=2|
+|EngineMode|1|2|Record=0,Play=1|
+|QuantizationMode|1|3|Free=0,Beat=1,Measure=2|
+|Metronome|1|4|0=off, 1=on|
+|ActiveLooper|1|5|0-..|
+|LooperCount|1|6|0-..|
+|LooperMode|1|7①|Recording=0,Overdubbing=1,Muted=2,Playing=3,Soloed=4,Armed=5|
+
+①LooperMode controller number is the configured controller number + the idx of the looper, e.g. loop
+0 would come as controller 7, loop 1 would come as controller 8 if the configured controller number is
+7. LooperMode should be set so that the controller + looper index does not conflict with other controller
+numbers.
+
+Each non-empty line of this file should contain the following
+tab-separated columns:
+
+1. EngineStateSnapshot field (see table above)
+2. Midi channel
+3. Midi controller number
+
+``` tsv
+SnapshotField Channel Controller
+EngineState 1 1
+EngineMode  1 2
+QuantizationMode  1 3
+Metronome 1 4
+ActiveLooper  1 5
+LooperCount 1 6
+LooperMode  1 7
 ```

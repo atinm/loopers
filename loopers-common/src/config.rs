@@ -1,5 +1,5 @@
 use crate::api::{Command, CommandData};
-use crate::midi::MidiEvent;
+use crate::midi::{MidiEvent, EngineSnapshotField};
 use crate::gui_channel::{EngineMode};
 use csv::StringRecord;
 use std::fs::File;
@@ -10,7 +10,7 @@ use std::str::FromStr;
 mod tests {
     use crate::api::LooperCommand::{RecordOverdubPlay, SetPan};
     use crate::api::{Command, CommandData, LooperTarget};
-    use crate::config::{DataValue, MidiMapping, FILE_HEADER};
+    use crate::config::{DataValue, MidiInMapping, MIDI_IN_FILE_HEADER};
     use crate::gui_channel::{EngineMode};
     use std::fs::File;
     use std::io::Write;
@@ -26,7 +26,7 @@ mod tests {
         let mut file = NamedTempFile::new().unwrap();
         {
             let file = file.as_file_mut();
-            writeln!(file, "{}", FILE_HEADER).unwrap();
+            writeln!(file, "{}", MIDI_IN_FILE_HEADER).unwrap();
             writeln!(file, "*\t22\t127\tRecord\tRecordOverdubPlay\t0").unwrap();
             writeln!(file, "*\t23\t*\tBoth\tSetMetronomeLevel\t50").unwrap();
             writeln!(file, "1\t24\t6\tBoth\tStart").unwrap();
@@ -34,7 +34,7 @@ mod tests {
             file.flush().unwrap();
         }
 
-        let mapping = MidiMapping::from_file(
+        let mapping = MidiInMapping::from_file(
             &file.path().to_string_lossy(),
             &File::open(&file.path()).unwrap(),
         )
@@ -78,16 +78,19 @@ mod tests {
     }
 }
 
-pub static FILE_HEADER: &str = "Channel\tController\tData\tMode\tCommand\tArg1\tArg2\tArg3";
+pub static MIDI_IN_FILE_HEADER: &str = "Channel\tController\tData\tMode\tCommand\tArg1\tArg2\tArg3";
+pub static MIDI_OUT_FILE_HEADER: &str = "SnapshotField\tChannel\tController";
 
 pub struct Config {
-    pub midi_mappings: Vec<MidiMapping>,
+    pub midi_in_mappings: Vec<MidiInMapping>,
+    pub midi_out_mappings: Vec<MidiOutMapping>,
 }
 
 impl Config {
     pub fn new() -> Config {
         Config {
-            midi_mappings: vec![],
+            midi_in_mappings: vec![],
+            midi_out_mappings: vec![],
         }
     }
 }
@@ -129,7 +132,7 @@ impl DataValue {
     }
 }
 
-pub struct MidiMapping {
+pub struct MidiInMapping {
     pub channel: Option<u8>,
     pub controller: u8,
     pub data: DataValue,
@@ -137,8 +140,8 @@ pub struct MidiMapping {
     pub command: Box<dyn Fn(CommandData) -> Command + Send>,
 }
 
-impl MidiMapping {
-    pub fn from_file(name: &str, file: &File) -> io::Result<Vec<MidiMapping>> {
+impl MidiInMapping {
+    pub fn from_file(name: &str, file: &File) -> io::Result<Vec<MidiInMapping>> {
         let mut rdr = csv::ReaderBuilder::new()
             .delimiter(b'\t')
             .flexible(true)
@@ -162,7 +165,7 @@ impl MidiMapping {
                             err
                         );
                     } else {
-                        error!("Failed to load midi mapping: {}", err);
+                        error!("Failed to load midi in mapping: {}", err);
                     }
                 }
             }
@@ -171,14 +174,14 @@ impl MidiMapping {
         if caught_error {
             Err(io::Error::new(
                 io::ErrorKind::Other,
-                format!("Failed to parse midi mappings from {}", name),
+                format!("Failed to parse midi in mappings from {}", name),
             ))
         } else {
             Ok(mappings)
         }
     }
 
-    fn from_record(record: &StringRecord) -> Result<MidiMapping, String> {
+    fn from_record(record: &StringRecord) -> Result<MidiInMapping, String> {
         let channel = record.get(0).ok_or("No channel field".to_string())?;
 
         let channel = match channel {
@@ -218,7 +221,7 @@ impl MidiMapping {
             .ok_or("No command field".to_string())
             .and_then(|c| Command::from_str(c, &args))?;
 
-        Ok(MidiMapping {
+        Ok(MidiInMapping {
             channel,
             controller,
             data,
@@ -246,4 +249,76 @@ impl MidiMapping {
 
         None
     }
+}
+
+pub struct MidiOutMapping {
+    pub field: EngineSnapshotField,
+    pub channel: u8,
+    pub controller: u8,
+}
+
+impl MidiOutMapping {
+    pub fn from_file(name: &str, file: &File) -> io::Result<Vec<MidiOutMapping>> {
+        let mut rdr = csv::ReaderBuilder::new()
+            .delimiter(b'\t')
+            .flexible(true)
+            .has_headers(true)
+            .from_reader(file);
+
+        let mut mappings = vec![];
+        let mut caught_error = false;
+
+        for result in rdr.records() {
+            let record = result?;
+
+            match Self::from_record(&record) {
+                Ok(mm) => mappings.push(mm),
+                Err(err) => {
+                    caught_error = true;
+                    if let Some(pos) = record.position() {
+                        error!(
+                            "Failed to load midi out mapping on line {}: {}",
+                            pos.line(),
+                            err
+                        );
+                    } else {
+                        error!("Failed to load midi out mapping: {}", err);
+                    }
+                }
+            }
+        }
+
+        if caught_error {
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("Failed to parse midi mappings from {}", name),
+            ))
+        } else {
+            Ok(mappings)
+        }
+    }
+
+    fn from_record(record: &StringRecord) -> Result<MidiOutMapping, String> {
+        let field = record
+            .get(0)
+            .ok_or("No SnapshotField field".to_string())
+            .and_then(|c| EngineSnapshotField::from_str(c))?;
+
+        let channel = record
+            .get(1)
+            .ok_or("No channel field".to_string())
+            .and_then(|c| u8::from_str(c).map_err(|_| "Channel is not a number".to_string()))?;
+
+        let controller = record
+            .get(2)
+            .ok_or("No controller field".to_string())
+            .and_then(|c| u8::from_str(c).map_err(|_| "Controller is not a number".to_string()))?;
+
+        Ok(MidiOutMapping {
+            field,
+            channel,
+            controller,
+        })
+    }
+
 }

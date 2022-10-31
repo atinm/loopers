@@ -302,6 +302,7 @@ impl Gui {
                         l.parts = state.parts;
                         l.speed = state.speed;
                         l.pan = state.pan;
+                        l.offset = state.offset;
                         l.level = state.level;
                         l.has_undos = state.has_undos;
                         l.has_redos = state.has_redos;

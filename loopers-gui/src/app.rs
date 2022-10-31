@@ -441,7 +441,7 @@ impl MainPage {
                 (LOOPER_HEIGHT + LOOPER_MARGIN) * visible_loopers as f32 + 50.0,
             ));
 
-            if (data.show_buttons) {
+            if data.show_buttons {
                 self.add_button.draw(canvas, data, controller, last_event);
             }
 

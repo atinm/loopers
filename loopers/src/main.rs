@@ -18,6 +18,7 @@ mod looper_coreaudio;
 use clap::{App, Arg};
 use crossbeam_channel::bounded;
 use loopers_common::gui_channel::GuiSender;
+use loopers_common::midi::{MidiOutSender};
 use loopers_gui::Gui;
 use std::io;
 use std::process::exit;
@@ -130,6 +131,8 @@ fn main() {
         (None, GuiSender::disconnected())
     };
 
+    let (midi_out_sender, midi_out_receiver) = MidiOutSender::new();
+
     // read wav files
     let reader = hound::WavReader::new(SINE_NORMAL).unwrap();
     let beat_normal: Vec<f32> = reader
@@ -148,13 +151,13 @@ fn main() {
     match matches.value_of("driver")
         .unwrap_or(DEFAULT_DRIVER) {
         "jack" => {
-            jack_main(gui, gui_sender, gui_to_engine_receiver, beat_normal, beat_emphasis, restore);
+            jack_main(gui, gui_sender, gui_to_engine_receiver, midi_out_sender, midi_out_receiver, beat_normal, beat_emphasis, restore);
         }
         "coreaudio" => {
             if cfg!(target_os = "macos") {
                 #[cfg(target_os = "macos")]
                 crate::looper_coreaudio::coreaudio_main(
-                    gui, gui_sender, gui_to_engine_receiver, beat_normal, beat_emphasis, restore)
+                    gui, gui_sender, gui_to_engine_receiver, midi_out_sender, midi_out_receiver, beat_normal, beat_emphasis, restore)
                     .expect("failed to set up coreaudio");
             } else {
                 eprintln!("Coreaudio is not supported on this system; choose another driver");

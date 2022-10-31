@@ -10,7 +10,6 @@ use std::io::{Read, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-
 use crossbeam_channel::Receiver;
 
 use loopers_common::api::QuantizationMode::Free;
@@ -18,11 +17,11 @@ use loopers_common::api::{
     get_sample_rate, set_sample_rate, Command, FrameTime, LooperCommand, LooperMode, LooperTarget,
     Part, PartSet, QuantizationMode, SavedSession,
 };
-use loopers_common::config::{Config, MidiMapping, FILE_HEADER};
+use loopers_common::config::{Config, MidiInMapping, MidiOutMapping, MIDI_IN_FILE_HEADER, MIDI_OUT_FILE_HEADER};
 use loopers_common::gui_channel::{
     EngineState, EngineMode, EngineSwitchingOrder, EngineStateSnapshot, GuiCommand, GuiSender, LogMessage,
 };
-use loopers_common::midi::MidiEvent;
+use loopers_common::midi::{MidiEvent, MidiOutSender, MidiOutCommand, MidiEngineStateSnapshot};
 use loopers_common::music::*;
 use loopers_common::Host;
 
@@ -56,6 +55,8 @@ pub struct Engine {
     command_input: Receiver<Command>,
 
     gui_sender: GuiSender,
+
+    midi_out_sender: MidiOutSender,
 
     loopers: Vec<Looper>,
     active: u32,
@@ -98,30 +99,38 @@ pub fn last_session_path() -> io::Result<PathBuf> {
     Ok(config_path)
 }
 
-pub fn midi_mapping_path() -> io::Result<PathBuf> {
+pub fn midi_in_mapping_path() -> io::Result<PathBuf> {
     let mut config_path = dirs::config_dir().unwrap_or(PathBuf::new());
     config_path.push("loopers");
     create_dir_all(&config_path)?;
-    config_path.push("midi_mappings.tsv");
+    config_path.push("midi_in_mappings.tsv");
+    Ok(config_path)
+}
+
+pub fn midi_out_mapping_path() -> io::Result<PathBuf> {
+    let mut config_path = dirs::config_dir().unwrap_or(PathBuf::new());
+    config_path.push("loopers");
+    create_dir_all(&config_path)?;
+    config_path.push("midi_out_mappings.tsv");
     Ok(config_path)
 }
 
 pub fn read_config() -> Result<Config, String> {
     let mut config = Config::new();
 
-    match midi_mapping_path() {
+    match midi_in_mapping_path() {
         Ok(path) => {
             match File::open(&path) {
-                Ok(file) => match MidiMapping::from_file(&path.to_string_lossy(), &file) {
-                    Ok(mms) => config.midi_mappings.extend(mms),
+                Ok(file) => match MidiInMapping::from_file(&path.to_string_lossy(), &file) {
+                    Ok(mms) => config.midi_in_mappings.extend(mms),
                     Err(e) => {
-                        return Err(format!("Failed to load midi mappings: {:?}", e));
+                        return Err(format!("Failed to load midi in mappings: {:?}", e));
                     }
                 },
                 Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
                     // try to create an empty config file if it doesn't exist
                     if let Ok(ref mut file) = File::create(&path) {
-                        writeln!(file, "{}", FILE_HEADER).unwrap();
+                        writeln!(file, "{}", MIDI_IN_FILE_HEADER).unwrap();
                     }
                 }
                 Err(_) => {}
@@ -130,6 +139,26 @@ pub fn read_config() -> Result<Config, String> {
         Err(_) => {}
     }
 
+    match midi_out_mapping_path() {
+        Ok(path) => {
+            match File::open(&path) {
+                Ok(file) => match MidiOutMapping::from_file(&path.to_string_lossy(), &file) {
+                    Ok(mms) => config.midi_out_mappings.extend(mms),
+                    Err(e) => {
+                        return Err(format!("Failed to load midi out mappings: {:?}", e));
+                    }
+                },
+                Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
+                    // try to create an empty config file if it doesn't exist
+                    if let Ok(ref mut file) = File::create(&path) {
+                        writeln!(file, "{}", MIDI_OUT_FILE_HEADER).unwrap();
+                    }
+                }
+                Err(_) => {}
+            }
+        }
+        Err(_) => {}
+    }
     Ok(config)
 }
 
@@ -137,6 +166,7 @@ impl Engine {
     pub fn new<'a, H: Host<'a>>(
         host: &mut H,
         mut gui_sender: GuiSender,
+        midi_out_sender: MidiOutSender,
         command_input: Receiver<Command>,
         beat_normal: Vec<f32>,
         beat_emphasis: Vec<f32>,
@@ -170,6 +200,7 @@ impl Engine {
             metric_structure,
 
             gui_sender: gui_sender.clone(),
+            midi_out_sender: midi_out_sender.clone(),
             command_input,
 
             loopers: vec![Looper::new(0, PartSet::new(), gui_sender.clone()).start()],
@@ -239,10 +270,19 @@ impl Engine {
             m.reset();
         }
         self.triggers.clear();
-        self.set_time(FrameTime(-(self.measure_len().0 as i64)));
+        // start immediately, not at previous measure
+        self.set_time(FrameTime(0));
         for l in &mut self.loopers {
             l.handle_command(LooperCommand::Play);
         }
+    }
+
+    pub fn looper_mode_by_index(&self, idx: usize) -> LooperMode {
+        self.loopers
+            .iter()
+            .filter(|l| !l.deleted)
+            .skip(idx as usize)
+            .next().unwrap().mode()
     }
 
     fn looper_by_index_mut(&mut self, idx: u8) -> Option<&mut Looper> {
@@ -253,11 +293,15 @@ impl Engine {
             .next()
     }
 
+    pub fn midi_out_mappings(&self) -> &Vec<MidiOutMapping> {
+        return &self.config.midi_out_mappings;
+    }
+
     fn commands_from_midi<'a, H: Host<'a>>(&mut self, host: &mut H, events: &[MidiEvent]) {
         for e in events {
             debug!("midi {:?}", e);
-            for i in 0..self.config.midi_mappings.len() {
-                let mm = &self.config.midi_mappings[i];
+            for i in 0..self.config.midi_in_mappings.len() {
+                let mm = &self.config.midi_in_mappings[i];
                 if let Some(c) = mm.command_for_event(e, self.mode) {
                     self.handle_command(host, &c, false);
                 }
@@ -773,7 +817,7 @@ impl Engine {
     }
 
     // returns length
-    fn measure_len(&self) -> FrameTime {
+    fn _measure_len(&self) -> FrameTime {
         let bps = self.metric_structure.tempo.bpm() as f32 / 60.0;
         let mspb = 1000.0 / bps;
         let mspm = mspb * self.metric_structure.time_signature.upper as f32;
@@ -985,7 +1029,8 @@ impl Engine {
     // Step 2: Handle commands
     // Step 3: Play current samples
     // Step 4: Record
-    // Step 5: Update GUI
+    // Step 5: Update Midi Out
+    // Step 6: Update GUI
     pub fn process<'a, H: Host<'a>>(
         &mut self,
         host: &mut H,
@@ -1071,7 +1116,22 @@ impl Engine {
             peaks[i][1] = Self::iec_scale(ps[1]);
         }
 
-        // Update GUI
+        // Send Engine State to Midi Out
+        self.midi_out_sender
+            .send_update(MidiOutCommand::StateSnapshot(MidiEngineStateSnapshot {
+                engine_state: self.state,
+                engine_mode: self.mode,
+                sync_mode: self.sync_mode,
+                metronome: self
+                    .metronome
+                    .as_ref()
+                    .map(|m| m.get_volume() as u8)
+                    .unwrap_or(0),
+                active_looper: self.active as u8, // we're not going over 256 loops ...
+                looper_count: self.loopers.len() as u8, // ditto
+            }));
+
+            // Update GUI
         self.gui_sender
             .send_update(GuiCommand::StateSnapshot(EngineStateSnapshot {
                 engine_state: self.state,

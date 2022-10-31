@@ -1104,7 +1104,12 @@ impl LooperBackend {
             ControlMessage::SetTime(time) => {
                 self.out_time = FrameTime(time.0.max(0));
                 self.in_time = time;
+                self.offset = FrameTime(0);
                 self.should_output = true;
+                self.gui_sender.send_update(GuiCommand::LooperStateChange(
+                    self.id,
+                    self.current_state(),
+                ));
             }
             ControlMessage::ReadOutput(time) => {
                 self.out_time = FrameTime(self.out_time.0.max(time.0));
