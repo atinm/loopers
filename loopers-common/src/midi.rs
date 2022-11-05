@@ -60,7 +60,7 @@ impl MidiEvent {
         match me {
             MidiEvent::ControllerChange { channel, controller, data } => {
                 [
-                    *channel | 0xB0, /* channel */
+                    (0xB0 /* ControllerChange Command */ | (((*channel) - 1) & 0x0F)) as u8, /* channel */
                     *controller, /* controller */
                     *data, /* data */
                 ]

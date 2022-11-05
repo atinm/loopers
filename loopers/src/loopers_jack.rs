@@ -282,10 +282,6 @@ fn update_loopers(
                                     }),
                                 })
                                 .unwrap();
-                            info!(
-                                "Write MIDI Out: {} {} {}",
-                                current_looper_modes[idx] as u8, looper_mode as u8, 0
-                            );
                         }
                         LooperMode::Overdubbing => {
                             writer
@@ -298,10 +294,6 @@ fn update_loopers(
                                     }),
                                 })
                                 .unwrap();
-                            info!(
-                                "Write MIDI Out: {} {} {}",
-                                current_looper_modes[idx] as u8, looper_mode as u8, 1
-                            );
                         }
                         LooperMode::Muted => {
                             writer
@@ -314,10 +306,6 @@ fn update_loopers(
                                     }),
                                 })
                                 .unwrap();
-                            info!(
-                                "Write MIDI Out: {} {} {}",
-                                current_looper_modes[idx] as u8, looper_mode as u8, 2
-                            );
                         }
                         LooperMode::Playing => {
                             writer
@@ -330,10 +318,6 @@ fn update_loopers(
                                     }),
                                 })
                                 .unwrap();
-                            info!(
-                                "Write MIDI Out: {} {} {}",
-                                current_looper_modes[idx] as u8, looper_mode as u8, 3
-                            );
                         }
                         LooperMode::Soloed => {
                             writer
@@ -346,10 +330,6 @@ fn update_loopers(
                                     }),
                                 })
                                 .unwrap();
-                            info!(
-                                "Write MIDI Out: {} {} {}",
-                                current_looper_modes[idx] as u8, looper_mode as u8, 4
-                            );
                         }
                         LooperMode::Armed => {
                             writer
@@ -362,10 +342,6 @@ fn update_loopers(
                                     }),
                                 })
                                 .unwrap();
-                            info!(
-                                "Write MIDI Out: {} {} {}",
-                                current_looper_modes[idx] as u8, looper_mode as u8, 5
-                            );
                         }
                     }
                 }
@@ -403,10 +379,6 @@ fn update(
                             }),
                         })
                         .unwrap();
-                    info!(
-                        "Write MIDI Out: {}",
-                        new_state.engine_state != current_state.engine_state
-                    );
                 }
             }
             EngineSnapshotField::EngineMode => {
@@ -425,10 +397,6 @@ fn update(
                             }),
                         })
                         .unwrap();
-                    info!(
-                        "Write MIDI Out: {}",
-                        new_state.engine_mode != current_state.engine_mode
-                    );
                 }
             }
             EngineSnapshotField::QuantizationMode => {
@@ -447,10 +415,6 @@ fn update(
                             }),
                         })
                         .unwrap();
-                    info!(
-                        "Write MIDI Out: {}",
-                        new_state.sync_mode != current_state.sync_mode
-                    );
                 }
             }
             EngineSnapshotField::Metronome => {
@@ -465,10 +429,6 @@ fn update(
                             }),
                         })
                         .unwrap();
-                    info!(
-                        "Write MIDI Out: {}",
-                        new_state.sync_mode != current_state.sync_mode
-                    );
                 }
             }
             EngineSnapshotField::ActiveLooper => {
@@ -483,10 +443,6 @@ fn update(
                             }),
                         })
                         .unwrap();
-                    info!(
-                        "Write MIDI Out: {}",
-                        new_state.active_looper != current_state.active_looper
-                    );
                 }
             }
             EngineSnapshotField::LooperCount => {
@@ -501,10 +457,6 @@ fn update(
                             }),
                         })
                         .unwrap();
-                    info!(
-                        "Write MIDI Out: {}",
-                        new_state.looper_count != current_state.looper_count
-                    );
                 }
             }
             _ => {
