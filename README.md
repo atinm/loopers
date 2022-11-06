@@ -262,8 +262,8 @@ Commands also differ in how they are affected by quantization:
 | 2x | Looper Targets | Immediate | Sets the looper to 2x speed |
 
 ① _RecordOverdubPlay is quantized from Record -> Overdub and Overdub ->
-Play, but queued from Play -> Overdub. Similarly, RecordPlayOverdub is quantized
-from Record -> Play and Overdub -> Play, but queued from Play -> Overdub._
+Play, as well as quantized from Play -> Overdub. Similarly, RecordPlayOverdub is quantized
+from Record -> Play and Overdub -> Play, as well as from Play -> Overdub._
 
 #### Engine commands
 

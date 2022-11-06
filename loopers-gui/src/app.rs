@@ -137,7 +137,7 @@ impl ClockTimeAnimation {
 }
 
 const LOOPER_MARGIN: f32 = 10.0;
-const LOOPER_HEIGHT: f32 = 80.0;
+const LOOPER_HEIGHT: f32 = 120.0;
 const BOTTOM_MARGIN: f32 = 140.0;
 const WAVEFORM_OFFSET_X: f32 = 100.0;
 const LOOPER_CIRCLE_INDICATOR_WIDTH: f32 = 50.0;
@@ -433,15 +433,15 @@ impl MainPage {
         }
 
         // draw the looper add button if we can fit it
-        let max_loopers = ((h - BOTTOM_MARGIN) / (LOOPER_MARGIN + LOOPER_HEIGHT)).floor() as usize;
-        if visible_loopers < max_loopers {
-            canvas.save();
-            canvas.translate((
-                35.0,
-                (LOOPER_HEIGHT + LOOPER_MARGIN) * visible_loopers as f32 + 50.0,
-            ));
+        if data.show_buttons {
+            let max_loopers = ((h - BOTTOM_MARGIN) / (LOOPER_MARGIN + LOOPER_HEIGHT)).floor() as usize;
+            if visible_loopers < max_loopers {
+                canvas.save();
+                canvas.translate((
+                    35.0,
+                    (LOOPER_HEIGHT + LOOPER_MARGIN) * visible_loopers as f32 + 50.0,
+                ));
 
-            if data.show_buttons {
                 self.add_button.draw(canvas, data, controller, last_event);
             }
 
@@ -2194,8 +2194,9 @@ impl LooperView {
 
                 y += button_height + 10.0;
             }
-        } else {
-            // draw overlay to darken time that is past
+        } else if looper.mode != LooperMode::Recording && looper.mode != LooperMode::Overdubbing {
+            // draw overlay to darken time that is past unless recording or overdubbing
+            // since we want to see that we are recording or overdubbing clearly
             let mut paint = Paint::default();
             paint.set_anti_alias(true);
             paint.set_blend_mode(BlendMode::Darken);
@@ -2582,7 +2583,7 @@ impl WaveformView {
                 );
                 let mut paint = Paint::default();
                 paint.set_anti_alias(true);
-                paint.set_color(dark_color_for_mode(LooperMode::Recording));
+                paint.set_color(color_for_mode(LooperMode::Recording));
                 canvas.draw_path(&path, &paint);
                 canvas.restore();
             } else {

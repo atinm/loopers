@@ -331,6 +331,7 @@ impl Engine {
             (_, _, SetPan(_)) => None,
 
             (_, _, Record)
+            | (_, _, Overdub)
             | (_, LooperMode::Recording, _)
             | (true, _, RecordOverdubPlay)
             | (true, _, RecordPlayOverdub)
@@ -341,13 +342,13 @@ impl Engine {
                 time,
             )),
             (_, _, RecordOverdubPlay) => Some(Trigger::new(
-                TriggerCondition::Immediate,
+                trigger_condition, // if you want immediate triggering, use Free quantization
                 Command::Looper(lc, target),
                 ms,
                 time,
             )),
             (_, _, RecordPlayOverdub) => Some(Trigger::new(
-                TriggerCondition::Immediate,
+                trigger_condition, // if you want immediate triggering, use Free quantization
                 Command::Looper(lc, target),
                 ms,
                 time,
