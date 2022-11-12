@@ -418,12 +418,12 @@ impl MainPage {
                     .as_ref()
                     .unwrap()
                     .value(data.engine_state.time);
-                paint.set_stroke_width(3.0 + ((1.0 - v) * 5.0));
+                paint.set_stroke_width(1.0 + ((1.0 - v) * 3.0));
             } else {
                 self.beat_animation = None;
-                paint.set_stroke_width(3.0);
+                paint.set_stroke_width(1.0);
             }
-            paint.set_color(Color::from_rgb(255, 255, 255));
+            paint.set_color(Color::from_rgb(255, 0, 0));
             paint.set_style(Style::Stroke);
 
             if !data.loopers.is_empty() {
@@ -2651,6 +2651,7 @@ impl WaveformView {
         );
 
         // draw bar and beat lines
+        if data.engine_state.sync_mode != QuantizationMode::Free
         {
             canvas.save();
             // draw the first at the previous measure start before time

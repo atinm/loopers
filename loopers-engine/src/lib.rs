@@ -65,6 +65,37 @@ pub struct Engine {
 
     sync_mode: QuantizationMode,
 
+     // switch(sync_length)
+     //   case true:
+     //     switch(sync_mode)
+     //       case free:
+     //         the loop length will be the whole number multiple of shortest loop length
+     //       case beat:
+     //       case measure:
+     //         the loop length will be a whole number multiple of a fraction of the longest loop length, or a whole number multiple of longest loop length
+     //   case false:
+     //     switch(sync_mode)
+     //       case free:
+     //         immediate
+     //       case beat:
+     //         beginning of next beat
+     //       case measure:
+     //         beginning of next measure
+    sync_length: bool,
+
+    // switch(sync_start)
+    //   case true:
+    //     start recording at the next beginning of base track
+    //   case false:
+     //    switch(sync_mode)
+     //      case free:
+     //        immediate
+     //      case beat:
+     //        beginning of next beat
+     //      case measure:
+     //        beginning of next measure
+    sync_start: bool,
+
     metronome: Option<Metronome>,
 
     triggers: VecDeque<Trigger>,
@@ -208,6 +239,8 @@ impl Engine {
             current_part: Part::A,
 
             sync_mode: QuantizationMode::Measure,
+            sync_length: false,
+            sync_start: false,
 
             id_counter: 1,
 
@@ -319,7 +352,7 @@ impl Engine {
         looper: &Looper,
     ) -> Option<Trigger> {
         let trigger_condition = match sync_mode {
-            Free => if time.0 < 0 { Some(TriggerCondition::Beat) } else { None },
+            Free => None,
             QuantizationMode::Beat => Some(TriggerCondition::Beat),
             QuantizationMode::Measure => Some(TriggerCondition::Measure),
         }?;
