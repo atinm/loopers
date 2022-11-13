@@ -12,7 +12,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use crossbeam_channel::Receiver;
 
-use loopers_common::api::QuantizationMode::Free;
 use loopers_common::api::{
     get_sample_rate, set_sample_rate, Command, FrameTime, LooperCommand, LooperMode, LooperTarget,
     Part, PartSet, QuantizationMode, SavedSession,
@@ -64,37 +63,6 @@ pub struct Engine {
     current_part: Part,
 
     sync_mode: QuantizationMode,
-
-     // switch(sync_length)
-     //   case true:
-     //     switch(sync_mode)
-     //       case free:
-     //         the loop length will be the whole number multiple of shortest loop length
-     //       case beat:
-     //       case measure:
-     //         the loop length will be a whole number multiple of a fraction of the longest loop length, or a whole number multiple of longest loop length
-     //   case false:
-     //     switch(sync_mode)
-     //       case free:
-     //         immediate
-     //       case beat:
-     //         beginning of next beat
-     //       case measure:
-     //         beginning of next measure
-    sync_length: bool,
-
-    // switch(sync_start)
-    //   case true:
-    //     start recording at the next beginning of base track
-    //   case false:
-     //    switch(sync_mode)
-     //      case free:
-     //        immediate
-     //      case beat:
-     //        beginning of next beat
-     //      case measure:
-     //        beginning of next measure
-    sync_start: bool,
 
     metronome: Option<Metronome>,
 
@@ -239,8 +207,6 @@ impl Engine {
             current_part: Part::A,
 
             sync_mode: QuantizationMode::Measure,
-            sync_length: false,
-            sync_start: false,
 
             id_counter: 1,
 
@@ -346,17 +312,19 @@ impl Engine {
     fn trigger_from_command(
         ms: MetricStructure,
         sync_mode: QuantizationMode,
+        base_length: u64,
+        base_offset: FrameTime,
         time: FrameTime,
         lc: LooperCommand,
         target: LooperTarget,
         looper: &Looper,
     ) -> Option<Trigger> {
         let trigger_condition = match sync_mode {
-            Free => None,
+            QuantizationMode::Free => None,
             QuantizationMode::Beat => Some(TriggerCondition::Beat),
             QuantizationMode::Measure => Some(TriggerCondition::Measure),
+            QuantizationMode::Loop => Some(TriggerCondition::Loop),
         }?;
-
         use LooperCommand::*;
         match (looper.length() == 0, looper.mode(), lc) {
             // SetLevel and SetPan should apply immediately
@@ -364,7 +332,6 @@ impl Engine {
             (_, _, SetPan(_)) => None,
 
             (_, _, Record)
-            | (_, _, Overdub)
             | (_, LooperMode::Recording, _)
             | (true, _, RecordOverdubPlay)
             | (true, _, RecordPlayOverdub)
@@ -373,18 +340,24 @@ impl Engine {
                 Command::Looper(lc, target),
                 ms,
                 time,
+                base_length,
+                base_offset
             )),
             (_, _, RecordOverdubPlay) => Some(Trigger::new(
-                trigger_condition, // if you want immediate triggering, use Free quantization
+                TriggerCondition::Immediate,
                 Command::Looper(lc, target),
                 ms,
                 time,
+                base_length,
+                base_offset
             )),
             (_, _, RecordPlayOverdub) => Some(Trigger::new(
-                trigger_condition, // if you want immediate triggering, use Free quantization
+                TriggerCondition::Immediate,
                 Command::Looper(lc, target),
                 ms,
                 time,
+                base_length,
+                base_offset
             )),
             _ => None,
         }
@@ -398,7 +371,6 @@ impl Engine {
         let time = FrameTime(self.time);
         let triggers = &mut self.triggers;
         let gui_sender = &mut self.gui_sender;
-
         fn handle_or_trigger(
             triggered: bool,
             ms: MetricStructure,
@@ -407,13 +379,15 @@ impl Engine {
             lc: LooperCommand,
             target: LooperTarget,
             looper: &mut Looper,
+            base_length: u64,
+            base_offset: FrameTime,
             triggers: &mut VecDeque<Trigger>,
             gui_sender: &mut GuiSender,
         ) {
             if triggered {
                 looper.handle_command(lc);
             } else if let Some(trigger) =
-                Engine::trigger_from_command(ms, sync_mode, time, lc, target, looper)
+                Engine::trigger_from_command(ms, sync_mode, base_length, base_offset, time, lc, target, looper)
             {
                 Engine::add_trigger(triggers, trigger.clone());
 
@@ -428,11 +402,20 @@ impl Engine {
         }
 
         let mut selected = None;
+        let base_length = if self.loopers.len() > 1 { self.loopers.first().unwrap().length() } else { 0u64 };
+        let base_offset = if self.loopers.len() > 1 { self.loopers.first().unwrap().offset() } else { FrameTime(0) };
+/*         let base_length = self.loopers.iter().map(|l| {
+            if l.id != selected.unwrap() && l.length() > 0u64 {
+                l.length()
+             } else {
+                u64::MAX
+             }}).filter(|l| *l != u64::MAX).min().unwrap_or(0u64);
+ */
         match target {
             LooperTarget::Id(id) => {
                 if let Some(l) = self.loopers.iter_mut().find(|l| l.id == id) {
                     handle_or_trigger(
-                        triggered, ms, sync_mode, time, lc, target, l, triggers, gui_sender,
+                        triggered, ms, sync_mode, time, lc, target, l, base_length, base_offset, triggers, gui_sender,
                     );
                 } else {
                     warn!(
@@ -451,7 +434,7 @@ impl Engine {
                 {
                     selected = Some(l.id);
                     handle_or_trigger(
-                        triggered, ms, sync_mode, time, lc, target, l, triggers, gui_sender,
+                        triggered, ms, sync_mode, time, lc, target, l, base_length, base_offset, triggers, gui_sender,
                     );
                 } else {
                     warn!("No looper at index {} while handling command {:?}", idx, lc);
@@ -460,15 +443,15 @@ impl Engine {
             LooperTarget::All => {
                 for l in &mut self.loopers {
                     handle_or_trigger(
-                        triggered, ms, sync_mode, time, lc, target, l, triggers, gui_sender,
+                        triggered, ms, sync_mode, time, lc, target, l, 0, base_offset, triggers, gui_sender,
                     );
                 }
             }
             LooperTarget::Selected => {
                 let active = self.active;
-                if let Some(l) = self.loopers.iter_mut().find(|l| l.id == active) {
+            if let Some(l) = self.loopers.iter_mut().find(|l| l.id == active) {
                     handle_or_trigger(
-                        triggered, ms, sync_mode, time, lc, target, l, triggers, gui_sender,
+                        triggered, ms, sync_mode, time, lc, target, l, base_length, base_offset, triggers, gui_sender,
                     );
                 } else {
                     error!(
@@ -570,11 +553,15 @@ impl Engine {
                 return;
             }
 
+            let base_looper = engine.loopers.first().unwrap();
+            let base_length = base_looper.length();
+            let base_offset = base_looper.offset();
             let trigger_condition = match (queued, engine.sync_mode) {
                 (true, _) => TriggerCondition::Immediate,
                 (false, QuantizationMode::Free) => TriggerCondition::Immediate,
                 (false, QuantizationMode::Beat) => TriggerCondition::Beat,
                 (false, QuantizationMode::Measure) => TriggerCondition::Measure,
+                (false, QuantizationMode::Loop) => TriggerCondition::Loop,
             };
 
             let trigger = Trigger::new(
@@ -582,6 +569,8 @@ impl Engine {
                 command.clone(),
                 engine.metric_structure,
                 FrameTime(engine.time),
+                base_length,
+                base_offset,
             );
 
             if trigger.triggered_at() != FrameTime(0)

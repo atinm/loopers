@@ -204,6 +204,7 @@ fn initialize(new_state: MidiEngineStateSnapshot, engine: &mut Engine, writer: &
                                 QuantizationMode::Free => 0,
                                 QuantizationMode::Beat => 1,
                                 QuantizationMode::Measure => 2,
+                                QuantizationMode::Loop => 3,
                             },
                         }),
                     })
@@ -411,6 +412,7 @@ fn update(
                                     QuantizationMode::Free => 0,
                                     QuantizationMode::Beat => 1,
                                     QuantizationMode::Measure => 2,
+                                    QuantizationMode::Loop => 3,
                                 },
                             }),
                         })

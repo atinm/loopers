@@ -759,7 +759,10 @@ impl StateMachine {
         use LooperMode::*;
         StateMachine {
             transitions: vec![
-                (vec![Recording], vec![], LooperBackend::finish_recording),
+                (
+                    vec![Recording],
+                    vec![],
+                    LooperBackend::finish_recording),
                 (
                     vec![Recording, Overdubbing],
                     vec![],
@@ -1600,6 +1603,7 @@ pub struct Looper {
     local_mode: Option<LooperMode>,
     mode: Arc<Atomic<LooperMode>>,
     length: Arc<Atomic<u64>>,
+    offset: FrameTime,
     pub backend: Option<LooperBackend>,
     msg_counter: u64,
     out_queue: Arc<ArrayQueue<TransferBuf<f32>>>,
@@ -1717,7 +1721,7 @@ impl Looper {
             channel: s,
             mode,
             length,
-
+            offset,
             in_progress_output: None,
 
             last_time: FrameTime(0),
@@ -1807,6 +1811,10 @@ impl Looper {
         self.length.load(Ordering::Relaxed)
     }
 
+    pub fn offset(&self) -> FrameTime {
+        self.offset
+    }
+
     pub fn set_time(&mut self, time: FrameTime) {
         loop {
             if self.in_queue.pop().is_none() {
@@ -1814,6 +1822,9 @@ impl Looper {
             }
         }
         self.in_progress_output = None;
+
+        // clear the offset
+        self.offset = FrameTime(0);
 
         if self.mode() == LooperMode::Recording && time < FrameTime(0) {
             // we will clear our buffer
@@ -1839,6 +1850,7 @@ impl Looper {
             Clear => {
                 self.send_to_backend(ControlMessage::Clear);
                 self.clear_queue();
+                self.offset = FrameTime(0);
             }
 
             SetSpeed(speed) => {
@@ -2041,6 +2053,10 @@ impl Looper {
             size: 0,
             data: [[0f32; TRANSFER_BUF_SIZE]; 2],
         };
+
+        if self.mode() == LooperMode::Recording && self.length() == 0 {
+            self.offset = FrameTime(time_in_samples as i64);
+        }
 
         let mut time = time_in_samples;
         for (l, r) in inputs[0]

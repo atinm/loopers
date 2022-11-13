@@ -33,11 +33,11 @@ mod tests {
             time_signature: TimeSignature::new(4, 4).unwrap(),
         };
 
-        let t = Trigger::new(TriggerCondition::Measure, Command::Start, ms, FrameTime(0));
+        let t = Trigger::new(TriggerCondition::Measure, Command::Start, ms, FrameTime(0), 0u64, FrameTime(0));
 
         assert_eq!(FrameTime(0), t.triggered_at());
 
-        let t = Trigger::new(TriggerCondition::Measure, Command::Start, ms, FrameTime(1));
+        let t = Trigger::new(TriggerCondition::Measure, Command::Start, ms, FrameTime(1), 0u64, FrameTime(0));
 
         assert_eq!(FrameTime(88200), t.triggered_at());
 
@@ -46,6 +46,7 @@ mod tests {
             Command::Start,
             ms,
             FrameTime(-30000),
+            0u64, FrameTime(0),
         );
 
         assert_eq!(FrameTime(0), t.triggered_at());
@@ -55,6 +56,8 @@ mod tests {
             Command::Start,
             ms,
             FrameTime(88200),
+            0u64,
+            FrameTime(0),
         );
 
         assert_eq!(FrameTime(88200), t.triggered_at());
@@ -67,11 +70,11 @@ mod tests {
             time_signature: TimeSignature::new(4, 4).unwrap(),
         };
 
-        let t = Trigger::new(TriggerCondition::Beat, Command::Start, ms, FrameTime(0));
+        let t = Trigger::new(TriggerCondition::Beat, Command::Start, ms, FrameTime(0), 0u64, FrameTime(0));
 
         assert_eq!(FrameTime(0), t.triggered_at());
 
-        let t = Trigger::new(TriggerCondition::Beat, Command::Start, ms, FrameTime(1));
+        let t = Trigger::new(TriggerCondition::Beat, Command::Start, ms, FrameTime(1), 0u64, FrameTime(0));
 
         assert_eq!(FrameTime(22050), t.triggered_at);
     }
@@ -85,7 +88,7 @@ mod tests {
             };
 
             let t = Trigger::new(TriggerCondition::Measure,
-                                 Command::Start, ms, FrameTime(time));
+                                 Command::Start, ms, FrameTime(time), 0u64, FrameTime(0));
 
 
             assert_eq!(correct_measure_trigger(&t), t.triggered_at());
@@ -98,6 +101,7 @@ pub enum TriggerCondition {
     Immediate,
     Measure,
     Beat,
+    Loop,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -115,8 +119,10 @@ impl Trigger {
         command: Command,
         metric_structure: MetricStructure,
         start_time: FrameTime,
+        base_length: u64,
+        base_offset: FrameTime,
     ) -> Trigger {
-        let triggered_at = Self::compute_triggered_at(condition, metric_structure, start_time);
+        let triggered_at = Self::compute_triggered_at(condition, metric_structure, start_time, base_length, base_offset);
         Trigger {
             condition,
             command,
@@ -130,6 +136,8 @@ impl Trigger {
         condition: TriggerCondition,
         metric_structure: MetricStructure,
         start_time: FrameTime,
+        base_length: u64,
+        base_offset: FrameTime,
     ) -> FrameTime {
         match condition {
             TriggerCondition::Immediate => FrameTime(0),
@@ -159,6 +167,20 @@ impl Trigger {
                         start_time
                     } else {
                         FrameTime(start_time.0 + (spb - rem))
+                    }
+                }
+            }
+            TriggerCondition::Loop => {
+                if start_time.0 < 0 || base_length == 0 {
+                    FrameTime(0)
+                } else {
+                    let rem = start_time.0 % base_length as i64;
+                    let rem_offset = base_offset.0 % base_length as i64;
+
+                    if rem == 0 {
+                        FrameTime(start_time.0 + rem_offset)
+                    } else {
+                        FrameTime(start_time.0 + (base_length as i64 - rem) + rem_offset)
                     }
                 }
             }

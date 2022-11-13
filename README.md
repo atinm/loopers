@@ -244,9 +244,9 @@ Commands also differ in how they are affected by quantization:
 
 | **Command** | **Parameters** | **Quantization** | **Description** |
 |-|-|-|-|
-| Record | Looper Targets | Quantized | Moves the selected loopers to the Record mode |
-| Overdub | Looper Targets | Quantized | Moves the selected loopers to the Overdub mode |
-| Play | Looper Targets | Quantized | Moves the selected loopers to the Play mode |
+| Record | Looper Targets | Quantized① | Moves the selected loopers to the Record mode |
+| Overdub | Looper Targets | Quantized① | Moves the selected loopers to the Overdub mode |
+| Play | Looper Targets | Quantized① | Moves the selected loopers to the Play mode |
 | PlayMuteArm | Looper Targets | Immediate | Cycles from Play -> Mute -> Arm -> Mute -> Arm, engine Play will play all Armed loops |
 | RecordOverdubPlay | Looper Targets | Quantized① | Cycles from Record -> Overdub -> Play -> Overdub |
 | RecordPlayOverdub | Looper Targets | Quantized① | Cycles from Record -> Play -> Overdub -> Play -> Overdub |
@@ -254,7 +254,7 @@ Commands also differ in how they are affected by quantization:
 | Arm  | Looper Targets | Immediate | Toggles the arm modifier on the selected loopers |
 | Solo | Looper Targets | Immediate | Toggles the solo modifier on the selected loopers |
 | Delete | Looper Targets | Immediate | Deletes the selected loopers |
-| Clear | Looper Targets | Quantized | Clears all samples from the selected loopers |
+| Clear | Looper Targets | Quantized① | Clears all samples from the selected loopers |
 | SetPan | Looper Targets, a pan value from -1 (fully left) to 1 (fully right) | Immediate | Sets the pan for the looper |
 | SetLevel | Looper Targets, a level value from 0 (silent) to 1 (full volume) | Immediate | Sets the output level for the looper |
 | 1/2x | Looper Targets | Immediate | Sets the looper to 1/2x speed |
@@ -262,8 +262,10 @@ Commands also differ in how they are affected by quantization:
 | 2x | Looper Targets | Immediate | Sets the looper to 2x speed |
 
 ① _RecordOverdubPlay is quantized from Record -> Overdub and Overdub ->
-Play, as well as quantized from Play -> Overdub. Similarly, RecordPlayOverdub is quantized
-from Record -> Play and Overdub -> Play, as well as from Play -> Overdub._
+Play, but queued from Play -> Overdub. Similarly, RecordPlayOverdub is quantized
+from Record -> Play and Overdub -> Play, but queued from Play -> Overdub. Free
+Quantization mode also looks at whether Sync Loop is on, and if so, will Quantize
+to the first loop's start/end._
 
 #### Engine commands
 
@@ -284,7 +286,7 @@ from Record -> Play and Overdub -> Play, as well as from Play -> Overdub._
 | PreviousPart | _None_ | Quantized | Goes to the previous part, skipping those parts with no loopers |
 | NextPart | _None_ | Quantized | Goes to the next part, skipping those parts with no loopers |
 | GoToPart | One of `A`, `B`, `C`, or `D` | Quantized | Goes to the specified part |
-| SetQuantizationMode | One of `Free`, `Beat`, or `Measure` | Immediate | Sets the quantization mode for the engine |
+| SetQuantizationMode | One of `Free`, `Beat`, `Measure` or `Loop` | Immediate | Sets the quantization mode for the engine |
 | SetMetronomeLevel | 0-100 | Immediate | Sets the metronome volume to the given percentage |
 | SetTempoBPM | bpm (float) | Immediate | Sets the engine's tempo to the given BPM value |
 | SetTimeSignature | upper, lower | Immediate | Sets the engine's time signature according to the parameters (e.g. 3, 4) |
@@ -357,7 +359,7 @@ is run for the first time.
 |-|-|-|-|
 |EngineState|1|1|Stopped=0,Paused=1,Active=2|
 |EngineMode|1|2|Record=0,Play=1|
-|QuantizationMode|1|3|Free=0,Beat=1,Measure=2|
+|QuantizationMode|1|3|Free=0,Beat=1,Measure=2,Loop=3|
 |Metronome|1|4|0=off, 1=on|
 |ActiveLooper|1|5|0-..|
 |LooperCount|1|6|0-..|

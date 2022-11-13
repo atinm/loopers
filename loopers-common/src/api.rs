@@ -339,10 +339,11 @@ impl Command {
                         "Free" => Some(QuantizationMode::Free),
                         "Beat" => Some(QuantizationMode::Beat),
                         "Measure" => Some(QuantizationMode::Measure),
+                        "Loop" => Some(QuantizationMode::Loop),
                         _ => None,
                     })
                     .ok_or(
-                        "SetQuantizationMode expects a sync mode (one of Free, Beat, or Measure)"
+                        "SetQuantizationMode expects a sync mode (one of Free, Beat, Measure, Loop)"
                             .to_string(),
                     )?;
                 Box::new(move |_| Command::SetQuantizationMode(arg))
@@ -499,6 +500,7 @@ pub enum QuantizationMode {
     Free,
     Beat,
     Measure,
+    Loop,
 }
 
 fn sync_mode_default() -> QuantizationMode {

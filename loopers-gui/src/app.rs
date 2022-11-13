@@ -1594,6 +1594,10 @@ impl BottomButtonView {
                     ControlButton::new("bar", None, c, None, 22.0),
                 ),
                 (
+                    BottomButtonBehavior::SetSyncMode(QuantizationMode::Loop),
+                    ControlButton::new("loop", None, c, None, 22.0),
+                ),
+                (
                     BottomButtonBehavior::Part(Part::A),
                     ControlButton::new("A", None, c, None, 22.0),
                 ),
@@ -1767,7 +1771,7 @@ impl BottomButtonView {
             x += size.width + 10.0;
 
             if behavior == BottomButtonBehavior::Load
-                || behavior == BottomButtonBehavior::SetSyncMode(QuantizationMode::Measure)
+                || behavior == BottomButtonBehavior::SetSyncMode(QuantizationMode::Loop)
                 || behavior == BottomButtonBehavior::Part(Part::D)
             {
                 x += 30.0;
