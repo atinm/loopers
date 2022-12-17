@@ -434,7 +434,8 @@ impl MainPage {
 
         // draw the looper add button if we can fit it
         if data.show_buttons {
-            let max_loopers = ((h - BOTTOM_MARGIN) / (LOOPER_MARGIN + LOOPER_HEIGHT)).floor() as usize;
+            let max_loopers =
+                ((h - BOTTOM_MARGIN) / (LOOPER_MARGIN + LOOPER_HEIGHT)).floor() as usize;
             if visible_loopers < max_loopers {
                 canvas.save();
                 canvas.translate((
@@ -1343,7 +1344,8 @@ impl PlayButton {
                             );
                         }
                     }
-                    controller.send_command(Command::Start, "Failed to send start command to engine");
+                    controller
+                        .send_command(Command::Start, "Failed to send start command to engine");
                 }
             },
             last_event,
@@ -1435,7 +1437,7 @@ impl PauseButton {
             };
         }
 
-         // draw pause button
+        // draw pause button
         let rect1 = Rect::new(0.0, 0.0, 7.5, 20.0);
         let rect2 = Rect::new(12.5, 0.0, 20.0, 20.0);
         canvas.draw_rect(&rect1, &paint);
@@ -1615,7 +1617,7 @@ impl BottomButtonView {
                 ),
                 (
                     BottomButtonBehavior::Undo,
-                    ControlButton::new("U", Some(&UNDO_ICON) ,c, None, 22.0),
+                    ControlButton::new("U", Some(&UNDO_ICON), c, None, 22.0),
                 ),
                 (
                     BottomButtonBehavior::Redo,
@@ -1725,9 +1727,7 @@ impl BottomButtonView {
                     .get(&data.engine_state.active_looper)
                     .map(|l| l.length == 0)
                     .unwrap_or(true),
-                BottomButtonBehavior::Reset => data
-                    .loopers
-                    .len() == 0,
+                BottomButtonBehavior::Reset => data.loopers.len() == 0,
                 _ => false,
             };
 
@@ -1953,8 +1953,13 @@ impl LooperView {
         part: Part,
         h: f32,
     ) -> Box<dyn FnMut(&mut Canvas, &LooperData, &mut Controller, Option<GuiEvent>) -> Size> {
-        let mut button =
-            ControlButton::new(part.name(), None, Color::from_rgb(78, 78, 78), Some(28.0), h);
+        let mut button = ControlButton::new(
+            part.name(),
+            None,
+            Color::from_rgb(78, 78, 78),
+            Some(28.0),
+            h,
+        );
 
         Box::new(move |canvas, data, controller, last_event| {
             button.draw(
@@ -2655,41 +2660,36 @@ impl WaveformView {
         );
 
         // draw bar and beat lines
-        if data.engine_state.sync_mode != QuantizationMode::Free
-        {
-            canvas.save();
-            // draw the first at the previous measure start before time
-            let ms = data.engine_state.metric_structure;
-            let next_beat = ms.tempo.next_full_beat(data.engine_state.time);
-            let mut beat_of_measure = ms.time_signature.beat_of_measure(ms.tempo.beat(next_beat));
-            if beat_of_measure == 0 {
-                beat_of_measure = ms.time_signature.upper;
-            }
-
-            // we need to make sure that we go back far enough that the start is off of the screen
-            // so we just subtract measures until we are
-            // there's an analytical solution to this but I'm too lazy to figure it out right now
-            let mut start_time =
-                next_beat - FrameTime(beat_of_measure as i64 * ms.tempo.samples_per_beat() as i64);
-            let mut x = -self.time_to_x(data.engine_state.time - start_time);
-            while x > 0.0 {
-                start_time = start_time
-                    - FrameTime(
-                        ms.time_signature.upper as i64 * ms.tempo.samples_per_beat() as i64,
-                    );
-                x = -self.time_to_x(data.engine_state.time - start_time);
-            }
-
-            canvas.translate((x as f32, 0.0));
-            let size = self.beats.draw(
-                ms, data, looper, w, h,
-                // TODO: turning on the cache currently causes rendering issues
-                false, canvas,
-            );
-            canvas.translate((size.width, 0.0));
-            self.beats.draw(ms, data, looper, w, h, false, canvas);
-            canvas.restore();
+        canvas.save();
+        // draw the first at the previous measure start before time
+        let ms = data.engine_state.metric_structure;
+        let next_beat = ms.tempo.next_full_beat(data.engine_state.time);
+        let mut beat_of_measure = ms.time_signature.beat_of_measure(ms.tempo.beat(next_beat));
+        if beat_of_measure == 0 {
+            beat_of_measure = ms.time_signature.upper;
         }
+
+        // we need to make sure that we go back far enough that the start is off of the screen
+        // so we just subtract measures until we are
+        // there's an analytical solution to this but I'm too lazy to figure it out right now
+        let mut start_time =
+            next_beat - FrameTime(beat_of_measure as i64 * ms.tempo.samples_per_beat() as i64);
+        let mut x = -self.time_to_x(data.engine_state.time - start_time);
+        while x > 0.0 {
+            start_time = start_time
+                - FrameTime(ms.time_signature.upper as i64 * ms.tempo.samples_per_beat() as i64);
+            x = -self.time_to_x(data.engine_state.time - start_time);
+        }
+
+        canvas.translate((x as f32, 0.0));
+        let size = self.beats.draw(
+            ms, data, looper, w, h,
+            // TODO: turning on the cache currently causes rendering issues
+            false, canvas,
+        );
+        canvas.translate((size.width, 0.0));
+        self.beats.draw(ms, data, looper, w, h, false, canvas);
+        canvas.restore();
 
         // draw loop icons
         for x in loop_icons {
@@ -2742,9 +2742,7 @@ impl WaveformView {
                         text = Some("soloing");
                     }
                     LooperCommand::PlayMuteArm => {
-                        if looper.mode == LooperMode::Playing
-                            || looper.mode == LooperMode::Armed
-                        {
+                        if looper.mode == LooperMode::Playing || looper.mode == LooperMode::Armed {
                             paint.set_color(color_for_mode(LooperMode::Muted));
                             text = Some("muting");
                         } else {
