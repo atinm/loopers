@@ -174,13 +174,12 @@ impl Trigger {
                 if start_time.0 < 0 || base_length == 0 {
                     FrameTime(0)
                 } else {
-                    let rem = start_time.0 % base_length as i64;
-                    let rem_offset = base_offset.0 % base_length as i64;
+                    let rem = (start_time.0 - base_offset.0) % base_length as i64;
 
                     if rem == 0 {
-                        FrameTime(start_time.0 + rem_offset)
+                        FrameTime(start_time.0)
                     } else {
-                        FrameTime(start_time.0 + (base_length as i64 - rem) + rem_offset)
+                        FrameTime(start_time.0 + (base_length as i64 - rem))
                     }
                 }
             }
