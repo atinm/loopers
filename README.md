@@ -188,7 +188,7 @@ _quantization_ feature. This allows you to synchronize commands (for
 example, stopping recording and thus setting loop length) to certain
 metric events.
 
-It supports three quantization modes, set via buttons at the bottom of
+It supports four quantization modes, set via buttons at the bottom of
 the UI:
 
 * **Free** this disables quantization, and causes all commands to take
@@ -197,6 +197,8 @@ the UI:
   issued, as determined by the tempo
 * **Measure** commands take effect at the start of the next measure,
   as determined by the tempo and time signature
+* **Loop** commands take effect at the start of the next iteration of the
+  first loop (the first loop is used as the base for all other loops)
 
 Some commands are affected by quantization, and some take effect
 immediately. See the [commands reference](#commands) for more.
@@ -247,7 +249,7 @@ Commands also differ in how they are affected by quantization:
 | Record | Looper Targets | Quantized① | Moves the selected loopers to the Record mode |
 | Overdub | Looper Targets | Quantized① | Moves the selected loopers to the Overdub mode |
 | Play | Looper Targets | Quantized① | Moves the selected loopers to the Play mode |
-| PlayMuteArm | Looper Targets | Immediate | Cycles from Play -> Mute -> Arm -> Mute -> Arm, engine Play will play all Armed loops |
+| PlayArmMute | Looper Targets | Immediate | Cycles from Play -> Arm -> Mute -> Arm -> Mute, engine Play will play all Armed loops |
 | RecordOverdubPlay | Looper Targets | Quantized① | Cycles from Record -> Overdub -> Play -> Overdub |
 | RecordPlayOverdub | Looper Targets | Quantized① | Cycles from Record -> Play -> Overdub -> Play -> Overdub |
 | Mute | Looper Targets | Immediate | Toggles the mute modifier on the selected loopers |

@@ -2741,13 +2741,13 @@ impl WaveformView {
                         paint.set_color(color_for_mode(LooperMode::Soloed));
                         text = Some("soloing");
                     }
-                    LooperCommand::PlayMuteArm => {
-                        if looper.mode == LooperMode::Playing || looper.mode == LooperMode::Armed {
-                            paint.set_color(color_for_mode(LooperMode::Muted));
-                            text = Some("muting");
-                        } else {
+                    LooperCommand::PlayArmMute => {
+                        if looper.mode == LooperMode::Playing || looper.mode == LooperMode::Muted {
                             paint.set_color(color_for_mode(LooperMode::Armed));
                             text = Some("arming");
+                        } else {
+                            paint.set_color(color_for_mode(LooperMode::Muted));
+                            text = Some("muting");
                         }
                     }
                     LooperCommand::RecordOverdubPlay => {

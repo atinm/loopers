@@ -122,7 +122,7 @@ pub enum LooperCommand {
     // Composite commands
     RecordOverdubPlay,
     RecordPlayOverdub,
-    PlayMuteArm,
+    PlayArmMute,
 
     // not currently usable from midi
     AddToPart(Part),
@@ -160,7 +160,7 @@ impl LooperCommand {
             "Record" => Box::new(move |_| Looper(Record, target)),
             "Overdub" => Box::new(move |_| Looper(Overdub, target)),
             "Play" => Box::new(move |_| Looper(Play, target)),
-            "PlayMuteArm" => Box::new(move |_| Looper(PlayMuteArm, target)),
+            "PlayArmMute" => Box::new(move |_| Looper(PlayArmMute, target)),
             "Mute" => Box::new(move |_| Looper(Mute, target)),
             "Arm" => Box::new(move |_| Looper(Arm, target)),
             "Solo" => Box::new(move |_| Looper(Solo, target)),

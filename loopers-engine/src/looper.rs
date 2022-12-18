@@ -1886,11 +1886,11 @@ impl Looper {
                 self.deleted = true;
                 self.send_to_backend(ControlMessage::Deleted);
             }
-            PlayMuteArm => {
-                if self.mode() == LooperMode::Playing || self.mode() == LooperMode::Armed {
-                    self.transition_to(LooperMode::Muted);
-                } else {
+            PlayArmMute => {
+                if self.mode() == LooperMode::Playing || self.mode() == LooperMode::Muted {
                     self.transition_to(LooperMode::Armed);
+                } else {
+                    self.transition_to(LooperMode::Muted);
                 }
             }
             RecordOverdubPlay => {
