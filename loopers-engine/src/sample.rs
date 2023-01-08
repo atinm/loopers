@@ -209,6 +209,15 @@ impl Sample {
         self.buffer[1].extend_from_slice(data[1]);
     }
 
+    // Records empty data onto this sample, expanding the buffer as necessary to match data
+    pub fn record_empty(&mut self, data: &[&[f32]]) {
+        assert_eq!(2, data.len());
+        assert_eq!(data[0].len(), data[1].len());
+
+        self.buffer[0].resize(self.buffer[0].len()+data[0].len(), 0.0 as f32);
+        self.buffer[1].resize(self.buffer[1].len()+data[1].len(), 0.0 as f32);
+    }
+
     // Overdubs the buffer, starting at the give time. len(data[{0, 1}]) + time_in_samples must
     // be < than self.len().
     pub fn overdub(&mut self, time_in_samples: u64, data: &[&[f32]], speed: LooperSpeed) {

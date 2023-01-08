@@ -8,7 +8,7 @@ use std::thread;
 
 use crate::error::SaveLoadError;
 use loopers_common::api::{
-    FrameTime, LooperCommand, LooperMode, LooperSpeed, Part, PartSet, SavedLooper,
+    FrameTime, LooperCommand, LooperMode, LooperSpeed, Part, PartSet, SavedLooper
 };
 use loopers_common::gui_channel::GuiCommand::{AddNewSample, AddOverdubSample};
 use loopers_common::gui_channel::{
@@ -118,7 +118,7 @@ mod tests {
 
         verify_mode(&looper, LooperMode::Playing);
 
-        looper.transition_to(LooperMode::Recording);
+        looper.transition_to(LooperMode::Recording, false);
         process_until_done(&mut looper);
         verify_mode(&looper, LooperMode::Recording);
         assert_eq!(1, looper.backend.as_ref().unwrap().samples.len());
@@ -126,7 +126,7 @@ mod tests {
         let data = [vec![1.0f32, 1.0], vec![-1.0, -1.0]];
         looper.process_input(0, &[&data[0], &data[1]], Part::A);
         process_until_done(&mut looper);
-        looper.transition_to(LooperMode::Overdubbing);
+        looper.transition_to(LooperMode::Overdubbing, false);
         process_until_done(&mut looper);
 
         assert_eq!(2, looper.backend.as_ref().unwrap().samples.len());
@@ -134,11 +134,11 @@ mod tests {
             assert_eq!(2, s.length());
         }
 
-        looper.transition_to(LooperMode::Playing);
+        looper.transition_to(LooperMode::Playing, false);
         process_until_done(&mut looper);
         verify_mode(&looper, LooperMode::Playing);
 
-        looper.transition_to(LooperMode::Recording);
+        looper.transition_to(LooperMode::Recording, false);
         process_until_done(&mut looper);
         assert_eq!(1, looper.backend.as_ref().unwrap().samples.len());
         verify_length(&looper, 0);
@@ -151,7 +151,7 @@ mod tests {
         let mut l = looper_for_test();
         l.backend.as_mut().unwrap().enable_crossfading = false;
 
-        l.transition_to(LooperMode::Recording);
+        l.transition_to(LooperMode::Recording, false);
         process_until_done(&mut l);
 
         let mut input_left = vec![0f32; TRANSFER_BUF_SIZE];
@@ -167,7 +167,7 @@ mod tests {
         let mut o_l = vec![1f64; TRANSFER_BUF_SIZE];
         let mut o_r = vec![-1f64; TRANSFER_BUF_SIZE];
 
-        l.transition_to(LooperMode::Playing);
+        l.transition_to(LooperMode::Playing, false);
         process_until_done(&mut l);
         l.process_input(
             input_left.len() as u64,
@@ -197,7 +197,7 @@ mod tests {
         let mut l = looper_for_test();
         l.backend.as_mut().unwrap().enable_crossfading = false;
 
-        l.transition_to(LooperMode::Recording);
+        l.transition_to(LooperMode::Recording, false);
         process_until_done(&mut l);
 
         let mut input_left = vec![0f32; TRANSFER_BUF_SIZE];
@@ -224,7 +224,7 @@ mod tests {
             assert_eq!(*r, 0.0);
         }
 
-        l.transition_to(LooperMode::Overdubbing);
+        l.transition_to(LooperMode::Overdubbing, false);
         process_until_done(&mut l);
 
         // first record our overdub
@@ -264,7 +264,7 @@ mod tests {
         install_test_logger();
 
         let mut l = looper_for_test();
-        l.transition_to(LooperMode::Recording);
+        l.transition_to(LooperMode::Recording, false);
 
         let input_left = vec![1f32; 128];
         let input_right = vec![-1f32; 128];
@@ -277,7 +277,7 @@ mod tests {
 
         // with solo true and us in Playing, there should be no output
         l.set_time(FrameTime(0));
-        l.transition_to(LooperMode::Playing);
+        l.transition_to(LooperMode::Playing, false);
         process_until_done(&mut l);
 
         l.process_output(
@@ -294,7 +294,7 @@ mod tests {
 
         // with solo true and us in Solo, there should be output
         l.set_time(FrameTime(0));
-        l.transition_to(LooperMode::Soloed);
+        l.transition_to(LooperMode::Soloed, false);
         process_until_done(&mut l);
 
         l.process_output(
@@ -339,7 +339,7 @@ mod tests {
         let buf_size = 128;
 
         let mut l = looper_for_test();
-        l.transition_to(LooperMode::Recording);
+        l.transition_to(LooperMode::Recording, false);
 
         let mut input_left = vec![1f32; buf_size];
         let mut input_right = vec![-1f32; buf_size];
@@ -377,7 +377,7 @@ mod tests {
         time += 100;
 
         // then transition
-        l.transition_to(LooperMode::Overdubbing);
+        l.transition_to(LooperMode::Overdubbing, false);
         process_until_done(&mut l);
 
         let len = buf_size + 100;
@@ -429,7 +429,7 @@ mod tests {
         // now we play from the beginning
         l.set_time(FrameTime(0));
         process_until_done(&mut l);
-        l.transition_to(LooperMode::Playing);
+        l.transition_to(LooperMode::Playing, false);
         process_until_done(&mut l);
 
         o_l = vec![0f64; buf_size];
@@ -459,7 +459,7 @@ mod tests {
 
         l.set_time(FrameTime(offset as i64));
 
-        l.transition_to(LooperMode::Recording);
+        l.transition_to(LooperMode::Recording, false);
         process_until_done(&mut l);
 
         let mut input_left = vec![0f32; TRANSFER_BUF_SIZE];
@@ -475,7 +475,7 @@ mod tests {
         let mut o_l = vec![1f64; TRANSFER_BUF_SIZE];
         let mut o_r = vec![-1f64; TRANSFER_BUF_SIZE];
 
-        l.transition_to(LooperMode::Playing);
+        l.transition_to(LooperMode::Playing, false);
         process_until_done(&mut l);
         l.process_input(
             offset + input_left.len() as u64,
@@ -504,7 +504,7 @@ mod tests {
 
         let mut l = looper_for_test();
         l.backend.as_mut().unwrap().enable_crossfading = true;
-        l.transition_to(LooperMode::Recording);
+        l.transition_to(LooperMode::Recording, false);
         process_until_done(&mut l);
 
         let mut time = 0i64;
@@ -526,7 +526,7 @@ mod tests {
             input_right[i] = q / (1f32 - q);
         }
 
-        l.transition_to(LooperMode::Playing);
+        l.transition_to(LooperMode::Playing, false);
         process_until_done(&mut l);
 
         for i in (0..CROSS_FADE_SAMPLES * 2).step_by(32) {
@@ -635,7 +635,7 @@ mod tests {
             time += 32;
         }
 
-        l.transition_to(LooperMode::Recording);
+        l.transition_to(LooperMode::Recording, false);
         process_until_done(&mut l);
 
         input_left = vec![1f32; CROSS_FADE_SAMPLES * 2];
@@ -650,7 +650,7 @@ mod tests {
         process_until_done(&mut l);
         time += input_left.len() as i64;
 
-        l.transition_to(LooperMode::Playing);
+        l.transition_to(LooperMode::Playing, false);
         process_until_done(&mut l);
 
         // Go around again (we don't have the crossfaded samples until the second time around)
@@ -706,12 +706,12 @@ mod tests {
 
         let mut l = Looper::new(5, PartSet::new(), GuiSender::disconnected());
 
-        l.transition_to(LooperMode::Recording);
+        l.transition_to(LooperMode::Recording, false);
         process_until_done(&mut l);
         l.process_input(0, &[&input_left, &input_right], Part::A);
         process_until_done(&mut l);
 
-        l.transition_to(LooperMode::Overdubbing);
+        l.transition_to(LooperMode::Overdubbing, false);
         process_until_done(&mut l);
         l.process_input(0, &[&input_left2, &input_right2], Part::A);
         process_until_done(&mut l);
@@ -783,7 +783,7 @@ impl StateMachine {
         }
     }
 
-    fn handle_transition(&self, looper: &mut LooperBackend, next_state: LooperMode) {
+    fn handle_transition(&self, looper: &mut LooperBackend, next_state: LooperMode, loop_sync: bool) {
         let cur = looper.mode();
         for transition in &self.transitions {
             if (transition.0.is_empty() || transition.0.contains(&cur))
@@ -793,6 +793,11 @@ impl StateMachine {
             }
         }
         looper.mode.store(next_state, Ordering::Relaxed);
+        if next_state == LooperMode::Recording {
+            looper.loop_sync.store(loop_sync, Ordering::Relaxed);
+        } else {
+            looper.loop_sync.store(false, Ordering::Relaxed);
+        }
     }
 }
 
@@ -803,7 +808,7 @@ lazy_static! {
 #[derive(Debug)]
 pub enum ControlMessage {
     InputDataReady { id: u64, size: usize },
-    TransitionTo(LooperMode),
+    TransitionTo(LooperMode, bool),
     SetTime(FrameTime),
     ReadOutput(FrameTime),
     Shutdown,
@@ -998,6 +1003,7 @@ pub struct LooperBackend {
 
     should_output: bool,
     gui_needs_reset: bool,
+    loop_sync: Arc<Atomic<bool>>, // true if this looper is only syncing start/stop and length, using 0 input bufs
 }
 
 impl LooperBackend {
@@ -1044,6 +1050,10 @@ impl LooperBackend {
         return self.mode.load(Ordering::Relaxed);
     }
 
+    pub fn loop_sync(&self) -> bool {
+        return self.loop_sync.load(Ordering::Relaxed);
+    }
+
     fn handle_msg(&mut self, msg: ControlMessage) -> bool /* continue */ {
         debug!("[{}] got control message: {:?}", self.id, msg);
         match msg {
@@ -1078,11 +1088,11 @@ impl LooperBackend {
                     }
                 }
             }
-            ControlMessage::TransitionTo(mode) => {
-                self.transition_to(mode);
+            ControlMessage::TransitionTo(mode, loop_sync) => {
+                self.transition_to(mode, loop_sync);
             }
             ControlMessage::Clear => {
-                self.transition_to(LooperMode::Playing);
+                self.transition_to(LooperMode::Playing, false);
 
                 let mut samples = vec![];
                 swap(&mut samples, &mut self.samples);
@@ -1347,15 +1357,15 @@ impl LooperBackend {
         self.samples.push(overdub_sample);
     }
 
-    pub fn transition_to(&mut self, mode: LooperMode) {
-        debug!("Transition {:?} to {:?}", self.mode, mode);
+    pub fn transition_to(&mut self, mode: LooperMode, loop_sync: bool) {
+        debug!("Transition {} {:?} to {:?}, {:?} to {:?}", self.id, self.mode, mode, self.loop_sync, loop_sync);
 
-        if self.mode() == mode {
+        if self.mode() == mode && self.loop_sync() == loop_sync {
             // do nothing if we're not changing state
             return;
         }
 
-        STATE_MACHINE.handle_transition(self, mode);
+        STATE_MACHINE.handle_transition(self, mode, loop_sync);
 
         self.gui_sender.send_update(GuiCommand::LooperStateChange(
             self.id,
@@ -1411,11 +1421,17 @@ impl LooperBackend {
                 self.offset = FrameTime(time_in_samples as i64);
             }
 
+            let loop_sync = self.loop_sync();
             let s = self
                 .samples
                 .last_mut()
                 .expect("No samples for looper in record mode");
-            s.record(inputs);
+            // if this loop is only syncing start/stop/length with parent look, zero it out
+            if loop_sync {
+                s.record_empty(inputs);
+            } else {
+                s.record(inputs);
+            }
 
             self.length.store(s.length(), Ordering::Relaxed);
 
@@ -1423,7 +1439,12 @@ impl LooperBackend {
             let mut wv = [vec![0f64; inputs[0].len()], vec![0f64; inputs[0].len()]];
             for (c, vs) in inputs.iter().enumerate() {
                 for (i, v) in vs.iter().enumerate() {
-                    wv[c][i] = *v as f64;
+                    if self.loop_sync() {
+                        wv[c][i] = 0.0 as f64;
+                    }
+                    else {
+                        wv[c][i] = *v as f64;
+                    }
                 }
             }
             self.waveform_generator.add_buf(
@@ -1705,6 +1726,7 @@ impl Looper {
             redo_queue: VecDeque::new(),
             should_output: true,
             gui_needs_reset: false,
+            loop_sync: Arc::new(Atomic::new(false)),
         };
 
         Looper {
@@ -1838,15 +1860,15 @@ impl Looper {
         self.set_time(self.last_time)
     }
 
-    pub fn handle_command(&mut self, command: LooperCommand) {
+    pub fn handle_command(&mut self, command: LooperCommand, loop_sync: bool) {
         use LooperCommand::*;
         match command {
-            Record => self.transition_to(LooperMode::Recording),
-            Overdub => self.transition_to(LooperMode::Overdubbing),
-            Play => self.transition_to(LooperMode::Playing),
-            Arm => self.transition_to(LooperMode::Armed),
-            Mute => self.transition_to(LooperMode::Muted),
-            Solo => self.transition_to(LooperMode::Soloed),
+            Record => self.transition_to(LooperMode::Recording, loop_sync),
+            Overdub => self.transition_to(LooperMode::Overdubbing, loop_sync),
+            Play => self.transition_to(LooperMode::Playing, loop_sync),
+            Arm => self.transition_to(LooperMode::Armed, loop_sync),
+            Mute => self.transition_to(LooperMode::Muted, loop_sync),
+            Solo => self.transition_to(LooperMode::Soloed, loop_sync),
             Clear => {
                 self.send_to_backend(ControlMessage::Clear);
                 self.clear_queue();
@@ -1888,31 +1910,31 @@ impl Looper {
             }
             PlayArmMute => {
                 if self.mode() == LooperMode::Playing || self.mode() == LooperMode::Muted {
-                    self.transition_to(LooperMode::Armed);
+                    self.transition_to(LooperMode::Armed, loop_sync);
                 } else {
-                    self.transition_to(LooperMode::Muted);
+                    self.transition_to(LooperMode::Muted, loop_sync);
                 }
             }
             RecordOverdubPlay => {
                 // TODO: this logic is duplicated in the gui, would be good to unify somehow
                 if self.length() == 0 {
-                    self.transition_to(LooperMode::Recording);
+                    self.transition_to(LooperMode::Recording, loop_sync);
                 } else if self.mode() == LooperMode::Recording || self.mode() == LooperMode::Playing {
-                    self.transition_to(LooperMode::Overdubbing);
+                    self.transition_to(LooperMode::Overdubbing, loop_sync);
                 } else {
-                    self.transition_to(LooperMode::Playing);
+                    self.transition_to(LooperMode::Playing, loop_sync);
                 }
             }
             RecordPlayOverdub => {
                 // TODO: this logic is duplicated in the gui, would be good to unify somehow
                 if self.length() == 0 {
-                    self.transition_to(LooperMode::Recording);
+                    self.transition_to(LooperMode::Recording, loop_sync);
                 } else if self.mode() == LooperMode::Recording {
-                    self.transition_to(LooperMode::Playing);
+                    self.transition_to(LooperMode::Playing, loop_sync);
                 } else if self.mode() == LooperMode::Playing {
-                    self.transition_to(LooperMode::Overdubbing);
+                    self.transition_to(LooperMode::Overdubbing, loop_sync);
                 } else {
-                    self.transition_to(LooperMode::Playing);
+                    self.transition_to(LooperMode::Playing, loop_sync);
                 }
             }
             Undo => {
@@ -2088,14 +2110,13 @@ impl Looper {
         });
     }
 
-    pub fn transition_to(&mut self, mode: LooperMode) {
+    pub fn transition_to(&mut self, mode: LooperMode, loop_sync: bool) {
         let mut mode = mode;
         if self.length() == 0 && mode == LooperMode::Overdubbing {
             warn!("trying to move to overdub with 0-length looper");
             mode = LooperMode::Recording;
         }
-
-        self.send_to_backend(ControlMessage::TransitionTo(mode));
+        self.send_to_backend(ControlMessage::TransitionTo(mode, loop_sync));
         self.local_mode = Some(mode);
     }
 }

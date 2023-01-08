@@ -25,10 +25,10 @@ pub fn looper_benchmark(c: &mut Criterion) {
         b.iter_batched(
             || {
                 let mut l = Looper::new(1, PartSet::new(), GuiSender::disconnected());
-                l.transition_to(LooperMode::Recording);
+                l.transition_to(LooperMode::Recording, false);
                 l.process_input(0, &[&samples[0], &samples[1]], Part::A);
                 l.backend.as_mut().unwrap().process_until_done();
-                l.transition_to(LooperMode::Playing);
+                l.transition_to(LooperMode::Playing, false);
                 l.backend.as_mut().unwrap().process_until_done();
                 l
             },
@@ -45,7 +45,7 @@ pub fn looper_benchmark(c: &mut Criterion) {
         b.iter_batched(
             || {
                 let mut l = Looper::new(1, PartSet::new(), GuiSender::disconnected());
-                l.transition_to(LooperMode::Recording);
+                l.transition_to(LooperMode::Recording, false);
                 l.backend.as_mut().unwrap().process_until_done();
                 l
             },
@@ -55,7 +55,7 @@ pub fn looper_benchmark(c: &mut Criterion) {
                 l.process_output(FrameTime(0), &mut [&mut o_l, &mut o_r], Part::A, false);
                 l.backend.as_mut().unwrap().process_until_done();
 
-                l.transition_to(LooperMode::Playing);
+                l.transition_to(LooperMode::Playing, false);
                 l.backend.as_mut().unwrap().process_until_done();
 
                 l.process_input(128, &[&samples[0], &samples[1]], Part::A);

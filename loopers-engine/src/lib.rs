@@ -272,7 +272,7 @@ impl Engine {
         // start immediately, not at previous measure
         self.set_time(FrameTime(0));
         for l in &mut self.loopers {
-            l.handle_command(LooperCommand::Play);
+            l.handle_command(LooperCommand::Play, false);
         }
     }
 
@@ -381,11 +381,12 @@ impl Engine {
             looper: &mut Looper,
             base_length: u64,
             base_offset: FrameTime,
+            loop_sync: bool,
             triggers: &mut VecDeque<Trigger>,
             gui_sender: &mut GuiSender,
         ) {
             if triggered {
-                looper.handle_command(lc);
+                looper.handle_command(lc, loop_sync);
             } else if let Some(trigger) =
                 Engine::trigger_from_command(ms, sync_mode, base_length, base_offset, time, lc, target, looper)
             {
@@ -397,7 +398,7 @@ impl Engine {
                     lc,
                 ));
             } else {
-                looper.handle_command(lc);
+                looper.handle_command(lc, loop_sync);
             }
         }
 
@@ -415,7 +416,7 @@ impl Engine {
             LooperTarget::Id(id) => {
                 if let Some(l) = self.loopers.iter_mut().find(|l| l.id == id) {
                     handle_or_trigger(
-                        triggered, ms, sync_mode, time, lc, target, l, base_length, base_offset, triggers, gui_sender,
+                        triggered, ms, sync_mode, time, lc, target, l, base_length, base_offset, false, triggers, gui_sender,
                     );
                 } else {
                     warn!(
@@ -434,24 +435,26 @@ impl Engine {
                 {
                     selected = Some(l.id);
                     handle_or_trigger(
-                        triggered, ms, sync_mode, time, lc, target, l, base_length, base_offset, triggers, gui_sender,
+                        triggered, ms, sync_mode, time, lc, target, l, base_length, base_offset, false, triggers, gui_sender,
                     );
                 } else {
                     warn!("No looper at index {} while handling command {:?}", idx, lc);
                 }
             }
             LooperTarget::All => {
+                let mut loop_sync = false;
                 for l in &mut self.loopers {
                     handle_or_trigger(
-                        triggered, ms, sync_mode, time, lc, target, l, 0, base_offset, triggers, gui_sender,
+                        triggered, ms, sync_mode, time, lc, target, l, 0, base_offset, loop_sync, triggers, gui_sender,
                     );
+                    loop_sync = true; // only first loop is false, rest are synced
                 }
             }
             LooperTarget::Selected => {
                 let active = self.active;
-            if let Some(l) = self.loopers.iter_mut().find(|l| l.id == active) {
+                if let Some(l) = self.loopers.iter_mut().find(|l| l.id == active) {
                     handle_or_trigger(
-                        triggered, ms, sync_mode, time, lc, target, l, base_length, base_offset, triggers, gui_sender,
+                        triggered, ms, sync_mode, time, lc, target, l, base_length, base_offset, false, triggers, gui_sender,
                     );
                 } else {
                     error!(
@@ -813,7 +816,7 @@ impl Engine {
                         for l in &mut engine.loopers {
                             if !l.deleted && (l.mode() == LooperMode::Recording ||
                                 l.mode() == LooperMode::Overdubbing || l.mode() == LooperMode::Armed) {
-                                l.handle_command(LooperCommand::Play);
+                                l.handle_command(LooperCommand::Play, false);
                             }
                         }
                     }

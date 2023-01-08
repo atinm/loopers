@@ -151,7 +151,7 @@ impl jack::NotificationHandler for Notifications {
     }
 
     fn xrun(&mut self, _: &jack::Client) -> jack::Control {
-        warn!("JACK: xrun occurred");
+        //warn!("JACK: xrun occurred");
         jack::Control::Continue
     }
 }
