@@ -224,6 +224,8 @@ which looper will be targeted:
 * **Index**: takes an _index_ parameter and targets the looper at that
   index in the currently visible part, starting from 0.
 * **All**: targets all loopers
+* **AllSync**: targets all loopers, but only first records in RECORD mode
+  the rest just record silence
 
 Other commands may also take parameters which control their
 behavior.

@@ -442,6 +442,13 @@ impl Engine {
                 }
             }
             LooperTarget::All => {
+                for l in &mut self.loopers {
+                    handle_or_trigger(
+                        triggered, ms, sync_mode, time, lc, target, l, 0, base_offset, false, triggers, gui_sender,
+                    );
+                }
+            }
+            LooperTarget::AllSync => {
                 let mut loop_sync = false;
                 for l in &mut self.loopers {
                     handle_or_trigger(

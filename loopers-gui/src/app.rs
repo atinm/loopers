@@ -2660,36 +2660,39 @@ impl WaveformView {
         );
 
         // draw bar and beat lines
-        canvas.save();
-        // draw the first at the previous measure start before time
-        let ms = data.engine_state.metric_structure;
-        let next_beat = ms.tempo.next_full_beat(data.engine_state.time);
-        let mut beat_of_measure = ms.time_signature.beat_of_measure(ms.tempo.beat(next_beat));
-        if beat_of_measure == 0 {
-            beat_of_measure = ms.time_signature.upper;
-        }
+        if data.engine_state.sync_mode != QuantizationMode::Free
+        {
+            canvas.save();
+            // draw the first at the previous measure start before time
+            let ms = data.engine_state.metric_structure;
+            let next_beat = ms.tempo.next_full_beat(data.engine_state.time);
+            let mut beat_of_measure = ms.time_signature.beat_of_measure(ms.tempo.beat(next_beat));
+            if beat_of_measure == 0 {
+                beat_of_measure = ms.time_signature.upper;
+            }
 
-        // we need to make sure that we go back far enough that the start is off of the screen
-        // so we just subtract measures until we are
-        // there's an analytical solution to this but I'm too lazy to figure it out right now
-        let mut start_time =
-            next_beat - FrameTime(beat_of_measure as i64 * ms.tempo.samples_per_beat() as i64);
-        let mut x = -self.time_to_x(data.engine_state.time - start_time);
-        while x > 0.0 {
-            start_time = start_time
-                - FrameTime(ms.time_signature.upper as i64 * ms.tempo.samples_per_beat() as i64);
-            x = -self.time_to_x(data.engine_state.time - start_time);
-        }
+            // we need to make sure that we go back far enough that the start is off of the screen
+            // so we just subtract measures until we are
+            // there's an analytical solution to this but I'm too lazy to figure it out right now
+            let mut start_time =
+                next_beat - FrameTime(beat_of_measure as i64 * ms.tempo.samples_per_beat() as i64);
+            let mut x = -self.time_to_x(data.engine_state.time - start_time);
+            while x > 0.0 {
+                start_time = start_time
+                    - FrameTime(ms.time_signature.upper as i64 * ms.tempo.samples_per_beat() as i64);
+                x = -self.time_to_x(data.engine_state.time - start_time);
+            }
 
-        canvas.translate((x as f32, 0.0));
-        let size = self.beats.draw(
-            ms, data, looper, w, h,
-            // TODO: turning on the cache currently causes rendering issues
-            false, canvas,
-        );
-        canvas.translate((size.width, 0.0));
-        self.beats.draw(ms, data, looper, w, h, false, canvas);
-        canvas.restore();
+            canvas.translate((x as f32, 0.0));
+            let size = self.beats.draw(
+                ms, data, looper, w, h,
+                // TODO: turning on the cache currently causes rendering issues
+                false, canvas,
+            );
+            canvas.translate((size.width, 0.0));
+            self.beats.draw(ms, data, looper, w, h, false, canvas);
+            canvas.restore();
+        }
 
         // draw loop icons
         for x in loop_icons {

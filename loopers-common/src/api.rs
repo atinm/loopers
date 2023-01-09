@@ -98,6 +98,7 @@ pub enum LooperTarget {
     Index(u8),
     All,
     Selected,
+    AllSync,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -147,10 +148,11 @@ impl LooperCommand {
 
         let target = match *target_type {
             "All" => LooperTarget::All,
+            "AllSync" => LooperTarget::AllSync,
             "Selected" => LooperTarget::Selected,
             i => LooperTarget::Index(u8::from_str(i).map_err(|_| {
                 format!(
-                    "{} expects a target (All, Selected, or a looper index)",
+                    "{} expects a target (All, AllSync, Selected, or a looper index)",
                     command
                 )
             })?),
