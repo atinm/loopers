@@ -240,9 +240,9 @@ impl Sample {
                     }
                 }
                 LooperSpeed::One => {
-                    // in 1x speed mode we record every sample
+                    // in 1x speed mode we record every sample, and we fade the existing sample down to 94%
                     for (t, v) in channel.iter().enumerate() {
-                        self.buffer[i][(time_in_samples as usize + t) % len] += *v;
+                        self.buffer[i][(time_in_samples as usize + t) % len] = (self.buffer[i][(time_in_samples as usize + t) % len] * 0.94 as f32) + *v;
                     }
                 }
                 LooperSpeed::Half => {
