@@ -8,7 +8,7 @@ use std::thread;
 
 use crate::error::SaveLoadError;
 use loopers_common::api::{
-    FrameTime, LooperCommand, LooperMode, LooperSpeed, Part, PartSet, SavedLooper
+    FrameTime, LooperCommand, LooperMode, LooperSpeed, Part, PartSet, SavedLooper,
 };
 use loopers_common::gui_channel::GuiCommand::{AddNewSample, AddOverdubSample};
 use loopers_common::gui_channel::{
@@ -21,7 +21,6 @@ use std::mem::swap;
 
 use atomic::Atomic;
 use std::sync::atomic::Ordering;
-
 
 #[cfg(test)]
 mod tests {
@@ -61,10 +60,7 @@ mod tests {
             expected,
             "backend has unexpected length"
         );
-        assert_eq!(
-            looper.length(), expected,
-            "looper has unexpected length"
-        );
+        assert_eq!(looper.length(), expected, "looper has unexpected length");
     }
 
     fn looper_for_test() -> Looper {
@@ -280,12 +276,7 @@ mod tests {
         l.transition_to(LooperMode::Playing, false);
         process_until_done(&mut l);
 
-        l.process_output(
-            FrameTime(0),
-            &mut [&mut o_l, &mut o_r],
-            Part::A,
-            true,
-        );
+        l.process_output(FrameTime(0), &mut [&mut o_l, &mut o_r], Part::A, true);
 
         for i in 0..128 {
             assert_eq!(0.0, o_l[i]);
@@ -297,12 +288,7 @@ mod tests {
         l.transition_to(LooperMode::Soloed, false);
         process_until_done(&mut l);
 
-        l.process_output(
-            FrameTime(0),
-            &mut [&mut o_l, &mut o_r],
-            Part::A,
-            true,
-        );
+        l.process_output(FrameTime(0), &mut [&mut o_l, &mut o_r], Part::A, true);
 
         for i in 0..128 {
             assert_eq!(1.0, o_l[i]);
@@ -316,12 +302,7 @@ mod tests {
         l.set_time(FrameTime(0));
         process_until_done(&mut l);
 
-        l.process_output(
-            FrameTime(0),
-            &mut [&mut o_l, &mut o_r],
-            Part::B,
-            true,
-        );
+        l.process_output(FrameTime(0), &mut [&mut o_l, &mut o_r], Part::B, true);
 
         for i in 0..128 {
             assert_eq!(0.0, o_l[i]);
@@ -759,10 +740,7 @@ impl StateMachine {
         use LooperMode::*;
         StateMachine {
             transitions: vec![
-                (
-                    vec![Recording],
-                    vec![],
-                    LooperBackend::finish_recording),
+                (vec![Recording], vec![], LooperBackend::finish_recording),
                 (
                     vec![Recording, Overdubbing],
                     vec![],
@@ -783,7 +761,12 @@ impl StateMachine {
         }
     }
 
-    fn handle_transition(&self, looper: &mut LooperBackend, next_state: LooperMode, loop_sync: bool) {
+    fn handle_transition(
+        &self,
+        looper: &mut LooperBackend,
+        next_state: LooperMode,
+        loop_sync: bool,
+    ) {
         let cur = looper.mode();
         for transition in &self.transitions {
             if (transition.0.is_empty() || transition.0.contains(&cur))
@@ -1119,10 +1102,8 @@ impl LooperBackend {
                 self.in_time = time;
                 self.offset = FrameTime(0);
                 self.should_output = true;
-                self.gui_sender.send_update(GuiCommand::LooperStateChange(
-                    self.id,
-                    self.current_state(),
-                ));
+                self.gui_sender
+                    .send_update(GuiCommand::LooperStateChange(self.id, self.current_state()));
             }
             ControlMessage::ReadOutput(time) => {
                 self.out_time = FrameTime(self.out_time.0.max(time.0));
@@ -1149,23 +1130,19 @@ impl LooperBackend {
             }
             ControlMessage::SetPan(pan) => {
                 self.pan = pan;
-                self.gui_sender.send_update(GuiCommand::LooperStateChange(
-                    self.id,
-                    self.current_state(),
-                ));
+                self.gui_sender
+                    .send_update(GuiCommand::LooperStateChange(self.id, self.current_state()));
             }
             ControlMessage::SetLevel(level) => {
                 self.level = level;
-                self.gui_sender.send_update(GuiCommand::LooperStateChange(
-                    self.id, self.current_state()
-                ));
+                self.gui_sender
+                    .send_update(GuiCommand::LooperStateChange(self.id, self.current_state()));
             }
             ControlMessage::SetParts(parts) => {
                 self.parts = parts;
-                self.gui_sender.send_update(GuiCommand::LooperStateChange(
-                    self.id, self.current_state()
-                ));
-            },
+                self.gui_sender
+                    .send_update(GuiCommand::LooperStateChange(self.id, self.current_state()));
+            }
             ControlMessage::Undo => {
                 info!("Performing Undo on queue: {:?}", self.undo_queue);
 
@@ -1174,9 +1151,8 @@ impl LooperBackend {
                         self.redo_queue.push_back(change);
                     }
                 }
-                self.gui_sender.send_update(GuiCommand::LooperStateChange(
-                    self.id, self.current_state()
-                ));
+                self.gui_sender
+                    .send_update(GuiCommand::LooperStateChange(self.id, self.current_state()));
             }
             ControlMessage::Redo => {
                 info!("Performing Redo on queue: {:?}", self.redo_queue);
@@ -1185,9 +1161,8 @@ impl LooperBackend {
                         self.undo_queue.push_back(change);
                     }
                 }
-                self.gui_sender.send_update(GuiCommand::LooperStateChange(
-                    self.id, self.current_state()
-                ));
+                self.gui_sender
+                    .send_update(GuiCommand::LooperStateChange(self.id, self.current_state()));
             }
             ControlMessage::StopOutput => {
                 self.should_output = false;
@@ -1216,7 +1191,8 @@ impl LooperBackend {
             }
         } else {
             t
-        }.rem_euclid(self.length.load(Ordering::Relaxed) as i64) as usize
+        }
+        .rem_euclid(self.length.load(Ordering::Relaxed) as i64) as usize
     }
 
     fn fill_output(&mut self) {
@@ -1246,8 +1222,9 @@ impl LooperBackend {
 
                     for i in 0..2 {
                         for t in 0..buf.size {
-                            buf.data[i][t] +=
-                                b[i][self.time_loop_idx(self.out_time + FrameTime(t as i64), true)] as f64;
+                            buf.data[i][t] += b[i]
+                                [self.time_loop_idx(self.out_time + FrameTime(t as i64), true)]
+                                as f64;
                         }
                     }
                 }
@@ -1285,6 +1262,10 @@ impl LooperBackend {
 
     // state transition functions
     fn handle_crossfades(&mut self, _next_state: LooperMode) {
+        if self.loop_sync() {
+            return; // do no crossfades if we're just doing loop sync for this looper
+        }
+
         debug!("handling crossfade");
         self.xfade_samples_left = CROSS_FADE_SAMPLES;
         self.xfade_sample_idx = self.samples.len() - 1;
@@ -1358,7 +1339,10 @@ impl LooperBackend {
     }
 
     pub fn transition_to(&mut self, mode: LooperMode, loop_sync: bool) {
-        debug!("Transition {} {:?} to {:?}, {:?} to {:?}", self.id, self.mode, mode, self.loop_sync, loop_sync);
+        debug!(
+            "Transition {} {:?} to {:?}, {:?} to {:?}",
+            self.id, self.mode, mode, self.loop_sync, loop_sync
+        );
 
         if self.mode() == mode && self.loop_sync() == loop_sync {
             // do nothing if we're not changing state
@@ -1383,36 +1367,39 @@ impl LooperBackend {
     }
 
     fn handle_input(&mut self, time_in_samples: u64, inputs: &[&[f32]]) {
+        let loop_sync = self.loop_sync();
         if self.mode() == LooperMode::Overdubbing {
-            // in overdub mode, we add the new samples to our existing buffer
-            let time_in_loop = self.time_loop_idx(FrameTime(time_in_samples as i64), false);
+            if !loop_sync {
+                // in overdub mode, we add the new samples to our existing buffer
+                let time_in_loop = self.time_loop_idx(FrameTime(time_in_samples as i64), false);
 
-            let s = self
-                .samples
-                .last_mut()
-                .expect("No samples for looper in overdub mode");
+                let s = self
+                    .samples
+                    .last_mut()
+                    .expect("No samples for looper in overdub mode");
 
-            s.overdub(time_in_loop as u64, inputs, self.speed);
+                s.overdub(time_in_loop as u64, inputs, self.speed);
 
-            // TODO: this logic should probably be abstracted out into Sample so it can be reused
-            //       between here and fill_output
-            let mut wv = [vec![0f64; inputs[0].len()], vec![0f64; inputs[0].len()]];
-            for c in 0..2 {
-                for i in 0..inputs[0].len() {
-                    for s in &self.samples {
-                        wv[c][i] += s.buffer[c]
-                            [self.time_loop_idx(FrameTime(time_in_samples as i64 + i as i64), true)]
-                            as f64;
+                // TODO: this logic should probably be abstracted out into Sample so it can be reused
+                //       between here and fill_output
+                let mut wv = [vec![0f64; inputs[0].len()], vec![0f64; inputs[0].len()]];
+                for c in 0..2 {
+                    for i in 0..inputs[0].len() {
+                        for s in &self.samples {
+                            wv[c][i] += s.buffer[c][self
+                                .time_loop_idx(FrameTime(time_in_samples as i64 + i as i64), true)]
+                                as f64;
+                        }
                     }
                 }
+                self.waveform_generator.add_buf(
+                    self.mode(),
+                    FrameTime(time_in_samples as i64),
+                    &[&wv[0], &wv[1]],
+                    self.length_in_samples(true),
+                    &mut self.gui_sender,
+                );
             }
-            self.waveform_generator.add_buf(
-                self.mode(),
-                FrameTime(time_in_samples as i64),
-                &[&wv[0], &wv[1]],
-                self.length_in_samples(true),
-                &mut self.gui_sender,
-            );
         } else if self.mode() == LooperMode::Recording {
             // in record mode, we extend the current buffer with the new samples
 
@@ -1421,7 +1408,6 @@ impl LooperBackend {
                 self.offset = FrameTime(time_in_samples as i64);
             }
 
-            let loop_sync = self.loop_sync();
             let s = self
                 .samples
                 .last_mut()
@@ -1441,8 +1427,7 @@ impl LooperBackend {
                 for (i, v) in vs.iter().enumerate() {
                     if self.loop_sync() {
                         wv[c][i] = 0.0 as f64;
-                    }
-                    else {
+                    } else {
                         wv[c][i] = *v as f64;
                     }
                 }
@@ -1463,7 +1448,7 @@ impl LooperBackend {
 
         // after recording finishes, cross fade some samples with the beginning of the loop to
         // reduce popping
-        if self.xfade_samples_left > 0 {
+        if self.xfade_samples_left > 0 && !loop_sync {
             debug!("crossfading beginning at time {}", time_in_samples);
             if let Some(s) = self.samples.get_mut(self.xfade_sample_idx) {
                 // this assumes that things are sample-aligned
@@ -1490,30 +1475,29 @@ impl LooperBackend {
     fn add_change(&mut self, change: LooperChange) {
         self.undo_queue.push_back(change);
         self.redo_queue.clear();
-        self.gui_sender.send_update(GuiCommand::LooperStateChange(
-            self.id, self.current_state()
-        ));
+        self.gui_sender
+            .send_update(GuiCommand::LooperStateChange(self.id, self.current_state()));
     }
 
     fn reset_gui(&mut self) {
         if self.length_in_samples(false) > 0 {
-            self.gui_sender.send_update(GuiCommand::UpdateLooperWithSamples(
-                self.id,
-                self.length_in_samples(true),
-                Box::new(compute_waveform(&self.samples, WAVEFORM_DOWNSAMPLE)),
-                self.current_state(),
-            ));
+            self.gui_sender
+                .send_update(GuiCommand::UpdateLooperWithSamples(
+                    self.id,
+                    self.length_in_samples(true),
+                    Box::new(compute_waveform(&self.samples, WAVEFORM_DOWNSAMPLE)),
+                    self.current_state(),
+                ));
         } else {
-            self.gui_sender.send_update(GuiCommand::LooperStateChange(
-                self.id, self.current_state()))
+            self.gui_sender
+                .send_update(GuiCommand::LooperStateChange(self.id, self.current_state()))
         }
     }
 
     fn undo_change(&mut self, change: LooperChange) -> Option<LooperChange> {
         match change {
             LooperChange::PushSample => {
-                let sample = self.samples.pop()
-                    .map(|s| LooperChange::PopSample(s));
+                let sample = self.samples.pop().map(|s| LooperChange::PopSample(s));
                 self.gui_needs_reset = true;
                 sample
             }
@@ -1522,14 +1506,20 @@ impl LooperBackend {
                 self.gui_needs_reset = true;
                 Some(LooperChange::PushSample)
             }
-            LooperChange::Clear { samples, in_time, out_time, offset } => {
+            LooperChange::Clear {
+                samples,
+                in_time,
+                out_time,
+                offset,
+            } => {
                 self.samples = samples;
                 self.in_time = in_time;
                 self.out_time = out_time;
                 self.offset = offset;
 
                 if !self.samples.is_empty() {
-                    self.length.store(self.samples[0].length(), Ordering::Relaxed);
+                    self.length
+                        .store(self.samples[0].length(), Ordering::Relaxed);
                 }
 
                 self.gui_needs_reset = true;
@@ -1618,7 +1608,6 @@ pub struct Looper {
 
     pub pan_law: PanLaw,
 
-
     // this is pretty hacky -- we sometimes need a way to see the mode that has been just set on the
     // looper, before it's had a chance to make it to the backend
     local_mode: Option<LooperMode>,
@@ -1691,9 +1680,7 @@ impl Looper {
         }
 
         let mode = Arc::new(Atomic::new(LooperMode::Playing));
-        let length = Arc::new(Atomic::new(samples.get(0)
-            .map(|s| s.length())
-            .unwrap_or(0)));
+        let length = Arc::new(Atomic::new(samples.get(0).map(|s| s.length()).unwrap_or(0)));
 
         let backend = LooperBackend {
             id,
@@ -1747,7 +1734,7 @@ impl Looper {
             in_progress_output: None,
 
             last_time: FrameTime(0),
-            local_mode: None
+            local_mode: None,
         }
     }
 
@@ -1919,7 +1906,8 @@ impl Looper {
                 // TODO: this logic is duplicated in the gui, would be good to unify somehow
                 if self.length() == 0 {
                     self.transition_to(LooperMode::Recording, loop_sync);
-                } else if self.mode() == LooperMode::Recording || self.mode() == LooperMode::Playing {
+                } else if self.mode() == LooperMode::Recording || self.mode() == LooperMode::Playing
+                {
                     self.transition_to(LooperMode::Overdubbing, loop_sync);
                 } else {
                     self.transition_to(LooperMode::Playing, loop_sync);
@@ -1951,9 +1939,7 @@ impl Looper {
     }
 
     fn output_for_t(&mut self, t: FrameTime) -> Option<(f64, f64)> {
-        let mut cur = self
-            .in_progress_output
-            .or_else(|| self.in_queue.pop())?;
+        let mut cur = self.in_progress_output.or_else(|| self.in_queue.pop())?;
         self.in_progress_output = Some(cur);
 
         loop {
@@ -1982,16 +1968,16 @@ impl Looper {
 
     fn should_output(&self, part: Part, solo: bool) -> bool {
         if !self.parts[part] {
-            return false
+            return false;
         }
 
         if solo && self.mode() != LooperMode::Soloed {
-            return false
+            return false;
         }
 
-        return self.mode() == LooperMode::Playing ||
-            self.mode() == LooperMode::Overdubbing ||
-            self.mode() == LooperMode::Soloed
+        return self.mode() == LooperMode::Playing
+            || self.mode() == LooperMode::Overdubbing
+            || self.mode() == LooperMode::Soloed;
     }
 
     // In process_output, we modify the specified output buffers according to our internal state. In
