@@ -607,7 +607,9 @@ impl TempoView {
             canvas.draw_rect(bounds, &paint);
         }
 
-        canvas.draw_str(text, Point::new(15.0, 18.0), &font, &text_paint);
+        if data.engine_state.sync_mode != QuantizationMode::Free {
+            canvas.draw_str(text, Point::new(15.0, 18.0), &font, &text_paint);
+        }
 
         self.draw_edit(canvas, &font, &bounds, controller, last_event);
 

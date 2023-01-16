@@ -1314,6 +1314,9 @@ impl LooperBackend {
     }
 
     fn prepare_for_overdubbing(&mut self, _next_state: LooperMode) {
+        if self.loop_sync() {
+            return; // no preparation needed if this loop is in loop_sync mode
+        }
         let overdub_sample = Sample::with_size(self.length_in_samples(false) as usize);
 
         // TODO: currently, overdub buffers coming from record are not properly crossfaded until

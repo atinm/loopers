@@ -408,6 +408,15 @@ impl Part {
             Part::D => "D",
         }
     }
+
+    pub fn index(&self) -> u8 {
+        match self {
+            Part::A => 0,
+            Part::B => 1,
+            Part::C => 2,
+            Part::D => 3,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]

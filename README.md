@@ -366,11 +366,12 @@ is run for the first time.
 |QuantizationMode|1|3|Free=0,Beat=1,Measure=2,Loop=3|
 |Metronome|1|4|0=off, 1=on|
 |ActiveLooper|1|5|0-..|
-|LooperCount|1|6|0-..|
-|LooperMode|1|7①|Recording=0,Overdubbing=1,Muted=2,Playing=3,Soloed=4,Armed=5|
+|Part|1|6|0-3|
+|LooperCount|1|7|0-..|
+|LooperMode|1|8①|Recording=0,Overdubbing=1,Muted=2,Playing=3,Soloed=4,Armed=5|
 
 ①LooperMode controller number is the configured controller number + the idx of the looper, e.g. loop
-0 would come as controller 7, loop 1 would come as controller 8 if the configured controller number is
+0 would come as controller 8, loop 1 would come as controller 9 if the configured controller number is
 7. LooperMode should be set so that the controller + looper index does not conflict with other controller
 numbers.
 
@@ -388,6 +389,7 @@ EngineMode  1 2
 QuantizationMode  1 3
 Metronome 1 4
 ActiveLooper  1 5
-LooperCount 1 6
-LooperMode  1 7
+Part  1 6
+LooperCount 1 7
+LooperMode  1 8
 ```

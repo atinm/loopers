@@ -234,6 +234,18 @@ fn initialize(new_state: MidiEngineStateSnapshot, engine: &mut Engine, writer: &
                     })
                     .unwrap();
             }
+            EngineSnapshotField::Part => {
+                writer
+                    .write(&jack::RawMidi {
+                        time: 0,
+                        bytes: &MidiEvent::to_bytes(&MidiEvent::ControllerChange {
+                            channel: mm.channel,
+                            controller: mm.controller,
+                            data: new_state.part,
+                        }),
+                    })
+                    .unwrap();
+            }
             EngineSnapshotField::LooperCount => {
                 writer
                     .write(&jack::RawMidi {
@@ -446,6 +458,18 @@ fn update(
                         })
                         .unwrap();
                 }
+            }
+            EngineSnapshotField::Part => {
+                writer
+                    .write(&jack::RawMidi {
+                        time: 0,
+                        bytes: &MidiEvent::to_bytes(&MidiEvent::ControllerChange {
+                            channel: mm.channel,
+                            controller: mm.controller,
+                            data: new_state.part,
+                        }),
+                    })
+                    .unwrap();
             }
             EngineSnapshotField::LooperCount => {
                 if new_state.looper_count != current_state.looper_count {

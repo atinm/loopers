@@ -14,6 +14,7 @@ pub enum EngineSnapshotField {
     QuantizationMode,
     Metronome,
     ActiveLooper,
+    Part,
     LooperCount,
     LooperMode,
 }
@@ -28,6 +29,7 @@ impl EngineSnapshotField {
             "QuantizationMode" => EngineSnapshotField::QuantizationMode,
             "Metronome" => EngineSnapshotField::Metronome,
             "ActiveLooper" => EngineSnapshotField::ActiveLooper,
+            "Part" => EngineSnapshotField::Part,
             "LooperCount" => EngineSnapshotField::LooperCount,
             "LooperMode" => EngineSnapshotField::LooperMode,
             _ => EngineSnapshotField::Unknown,
@@ -76,6 +78,7 @@ pub struct MidiEngineStateSnapshot {
     pub sync_mode: QuantizationMode,
     pub metronome: u8,
     pub active_looper: u8,
+    pub part: u8,
     pub looper_count: u8,
 }
 

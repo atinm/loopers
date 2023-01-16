@@ -1161,6 +1161,7 @@ impl Engine {
                     .map(|m| m.get_volume() as u8)
                     .unwrap_or(0),
                 active_looper: self.active as u8, // we're not going over 256 loops ...
+                part: self.current_part.index(),
                 looper_count: self.loopers.len() as u8, // ditto
             }));
 
