@@ -320,7 +320,7 @@ impl Engine {
         looper: &Looper,
     ) -> Option<Trigger> {
         let trigger_condition = match sync_mode {
-            QuantizationMode::Free => None,
+            QuantizationMode::Free => Some(TriggerCondition::Immediate),
             QuantizationMode::Beat => Some(TriggerCondition::Beat),
             QuantizationMode::Measure => Some(TriggerCondition::Measure),
             QuantizationMode::Loop => Some(TriggerCondition::Loop),
